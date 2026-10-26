@@ -1,0 +1,104 @@
+version: "3.9"
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: swiftdrop_postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-swiftdrop}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-swiftdrop_secret}
+      POSTGRES_DB: ${POSTGRES_DB:-swiftdrop_db}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-swiftdrop}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - swiftdrop_net
+
+  rabbitmq:
+    image: rabbitmq:3.13-management-alpine
+    container_name: swiftdrop_rabbitmq
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-swiftdrop}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASS:-swiftdrop_mq}
+    ports:
+      - "5672:5672"
+      - "15672:15672" # Management UI
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    healthcheck:
+      test: rabbitmq-diagnostics -q ping
+      interval: 30s
+      timeout: 30s
+      retries: 3
+    networks:
+      - swiftdrop_net
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: swiftdrop_backend
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-swiftdrop}:${POSTGRES_PASSWORD:-swiftdrop_secret}@postgres:5432/${POSTGRES_DB:-swiftdrop_db}
+      RABBITMQ_URL: amqp://${RABBITMQ_USER:-swiftdrop}:${RABBITMQ_PASS:-swiftdrop_mq}@rabbitmq:5672
+      NODE_ENV: production
+    ports:
+      - "4000:4000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    volumes:
+      - uploads_data:/app/uploads
+    networks:
+      - swiftdrop_net
+    restart: unless-stopped
+
+  notification-service:
+    build:
+      context: ./notification-service
+      dockerfile: Dockerfile
+    container_name: swiftdrop_notification
+    env_file: .env
+    environment:
+      RABBITMQ_URL: amqp://${RABBITMQ_USER:-swiftdrop}:${RABBITMQ_PASS:-swiftdrop_mq}@rabbitmq:5672
+      NODE_ENV: production
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - swiftdrop_net
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_API_URL: ${VITE_API_URL:-http://localhost:4000}
+        VITE_SOCKET_URL: ${VITE_SOCKET_URL:-http://localhost:4000}
+    container_name: swiftdrop_frontend
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
+    networks:
+      - swiftdrop_net
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  rabbitmq_data:
+  uploads_data:
+
+networks:
+  swiftdrop_net:
+    driver: bridge
