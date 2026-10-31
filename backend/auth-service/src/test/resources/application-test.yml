@@ -1,0 +1,19 @@
+spring:
+  flyway:
+    url: ${spring.datasource.url}
+  datasource:
+    url: jdbc:h2:mem:auth;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DB_CLOSE_DELAY=-1;INIT=CREATE SCHEMA IF NOT EXISTS auth
+    username: sa
+    password: ''
+    driver-class-name: org.h2.Driver
+  session:
+    jdbc:
+      platform: h2
+      cleanup-cron: "-"
+app:
+  jwt-secret: test-only-secret-with-at-least-32-bytes-never-deploy
+  google-client-id: ''
+  google-client-secret: ''
+logging:
+  level:
+    root: WARN

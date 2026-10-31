@@ -1,0 +1,62 @@
+server:
+  port: ${PORT:4000}
+  shutdown: graceful
+  servlet:
+    session:
+      timeout: 5m
+      cookie:
+        http-only: true
+        secure: ${COOKIE_SECURE:false}
+        same-site: lax
+spring:
+  config:
+    import: "optional:file:./.env[.properties]"
+  application:
+    name: auth-service
+  datasource:
+    url: ${AUTH_DB_URL:${NEON_DB_URL:jdbc:postgresql://localhost:5432/swiftdrop_auth}}
+    username: ${AUTH_DB_USER:${NEON_DB_USER:swiftdrop}}
+    password: ${AUTH_DB_PASSWORD:${NEON_DB_PASS}}
+    hikari:
+      maximum-pool-size: ${AUTH_DB_POOL_SIZE:5}
+      minimum-idle: 0
+  flyway:
+    url: ${AUTH_MIGRATION_DB_URL:${spring.datasource.url}}
+    user: ${spring.datasource.username}
+    password: ${spring.datasource.password}
+    schemas: auth
+    default-schema: auth
+    create-schemas: true
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate.default_schema: auth
+  session:
+    jdbc:
+      initialize-schema: never
+      table-name: auth.SPRING_SESSION
+  jackson:
+    deserialization:
+      fail-on-unknown-properties: true
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+  endpoint:
+    health:
+      probes:
+        enabled: true
+      group:
+        readiness:
+          include: readinessState,db
+app:
+  frontend-url: ${FRONTEND_URL:http://localhost:3000}
+  jwt-secret: ${JWT_SECRET}
+  jwt-issuer: ${JWT_ISSUER:swiftdrop-auth}
+  jwt-ttl-seconds: ${JWT_TTL_SECONDS:900}
+  google-client-id: ${GOOGLE_CLIENT_ID:}
+  google-client-secret: ${GOOGLE_CLIENT_SECRET:}
+  google-redirect-uri: ${GOOGLE_REDIRECT_URI:http://localhost:4000/login/oauth2/code/google}

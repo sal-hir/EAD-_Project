@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { Package, Truck, LayoutDashboard, LogOut, User, PlusCircle, Search } from 'lucide-react';
@@ -6,10 +6,15 @@ import { Package, Truck, LayoutDashboard, LogOut, User, PlusCircle, Search } fro
 export const Navbar = () => {
   const { user, isAuthenticated, logout } = useAuth();
   const navigate = useNavigate();
+  const [loggingOut, setLoggingOut] = useState(false);
+  const [logoutError, setLogoutError] = useState('');
 
-  const handleLogout = () => {
-    logout();
-    navigate('/login');
+  const handleLogout = async () => {
+    if (loggingOut) return;
+    setLoggingOut(true); setLogoutError('');
+    try { await logout(); navigate('/login'); }
+    catch { setLogoutError('Could not end your session. Please try logging out again.'); }
+    finally { setLoggingOut(false); }
   };
 
   const getDashboardPath = () => {
@@ -89,6 +94,7 @@ export const Navbar = () => {
                   <button
                     onClick={handleLogout}
                     title="Logout"
+                    disabled={loggingOut}
                     className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition"
                   >
                     <LogOut className="w-5 h-5" />
@@ -114,6 +120,7 @@ export const Navbar = () => {
           </div>
         </div>
       </div>
+      {logoutError && <p role="alert" className="px-4 pb-2 text-sm text-rose-700">{logoutError}</p>}
     </nav>
   );
 };

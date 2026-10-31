@@ -1,16 +1,14 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { Truck, AlertCircle, ArrowRight, Store, User } from 'lucide-react';
+import { authError, dashboardPath } from '../api/client';
+import { Truck, AlertCircle, ArrowRight } from 'lucide-react';
 
 export const Register = () => {
-  const [role, setRole] = useState('CUSTOMER');
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [phone, setPhone] = useState('');
-  const [businessName, setBusinessName] = useState('');
-  const [webhookUrl, setWebhookUrl] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -19,6 +17,7 @@ export const Register = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (loading) return;
     setError('');
     setLoading(true);
 
@@ -28,15 +27,13 @@ export const Register = () => {
         email,
         password,
         phone,
-        role,
-        ...(role === 'MERCHANT' && { businessName, webhookUrl }),
       });
 
       // Auto login after registration
-      await login(email, password);
-      navigate(role === 'MERCHANT' ? '/merchant' : '/customer');
+      const user = await login(email, password);
+      navigate(dashboardPath(user.role));
     } catch (err) {
-      setError(err.response?.data?.message || err.message || 'Registration failed');
+      setError(authError(err, 'Registration failed'));
     } finally {
       setLoading(false);
     }
@@ -50,7 +47,7 @@ export const Register = () => {
         </div>
         <h2 className="text-3xl font-extrabold text-slate-900 tracking-tight">Create your account</h2>
         <p className="mt-2 text-sm text-slate-600">
-          Join SwiftDrop as an individual sender or business partner
+          Create a customer account. Merchant onboarding requires administrator approval and will be available in a later milestone.
         </p>
       </div>
 
@@ -63,41 +60,15 @@ export const Register = () => {
             </div>
           )}
 
-          {/* Account Type Selector */}
-          <div className="grid grid-cols-2 gap-3 mb-6">
-            <button
-              type="button"
-              onClick={() => setRole('CUSTOMER')}
-              className={`p-3 rounded-xl border flex items-center justify-center space-x-2 text-sm font-bold transition ${
-                role === 'CUSTOMER'
-                  ? 'border-blue-600 bg-blue-50 text-blue-700 shadow-sm'
-                  : 'border-slate-200 text-slate-600 hover:bg-slate-50'
-              }`}
-            >
-              <User className="w-4 h-4" />
-              <span>Customer</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setRole('MERCHANT')}
-              className={`p-3 rounded-xl border flex items-center justify-center space-x-2 text-sm font-bold transition ${
-                role === 'MERCHANT'
-                  ? 'border-blue-600 bg-blue-50 text-blue-700 shadow-sm'
-                  : 'border-slate-200 text-slate-600 hover:bg-slate-50'
-              }`}
-            >
-              <Store className="w-4 h-4" />
-              <span>Merchant (B2B)</span>
-            </button>
-          </div>
-
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
+              <label htmlFor="full-name" className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
                 Full Name
               </label>
               <input
+                id="full-name"
+                autoComplete="name"
+                maxLength={120}
                 type="text"
                 required
                 value={name}
@@ -107,27 +78,15 @@ export const Register = () => {
               />
             </div>
 
-            {role === 'MERCHANT' && (
-              <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
-                  Business / Store Name
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={businessName}
-                  onChange={(e) => setBusinessName(e.target.value)}
-                  placeholder="Apex Electronics Ltd"
-                  className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 text-slate-900 text-sm"
-                />
-              </div>
-            )}
+
 
             <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
+              <label htmlFor="email" className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
                 Email address
               </label>
               <input
+                id="email"
+                autoComplete="email"
                 type="email"
                 required
                 value={email}
@@ -138,12 +97,14 @@ export const Register = () => {
             </div>
 
             <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
-                Phone Number
+              <label htmlFor="phone" className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
+                Phone Number (optional)
               </label>
               <input
+                maxLength={30}
+                id="phone"
+                autoComplete="tel"
                 type="tel"
-                required
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
                 placeholder="+94 77 123 4567"
@@ -151,31 +112,22 @@ export const Register = () => {
               />
             </div>
 
-            {role === 'MERCHANT' && (
-              <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
-                  Webhook URL (Optional)
-                </label>
-                <input
-                  type="url"
-                  value={webhookUrl}
-                  onChange={(e) => setWebhookUrl(e.target.value)}
-                  placeholder="https://myshop.com/webhooks/swiftdrop"
-                  className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 text-slate-900 text-sm"
-                />
-              </div>
-            )}
+
 
             <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
+              <label htmlFor="password" className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
                 Password
               </label>
               <input
+                minLength={8}
+                maxLength={72}
+                id="password"
+                autoComplete="new-password"
                 type="password"
                 required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="Min 8 characters (uppercase & number)"
+                placeholder="8 to 72 printable characters"
                 className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 text-slate-900 text-sm"
               />
             </div>

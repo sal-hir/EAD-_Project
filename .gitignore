@@ -2,13 +2,17 @@
 node_modules/
 */node_modules/
 package-lock.json
+!frontend/package-lock.json
 
 # Environment variables & secrets (Never commit secrets!)
 .env
 */.env
 *.env.local
+.env.*
+!.env.example
 
 # Production build outputs
+target/
 dist/
 build/
 */dist/

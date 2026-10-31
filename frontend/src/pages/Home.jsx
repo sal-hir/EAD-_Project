@@ -58,10 +58,7 @@ export const Home = () => {
             </form>
           </div>
 
-          {/* Quick Demo Credentials Banner */}
-          <div className="mt-8 inline-block bg-slate-100/90 backdrop-blur border border-slate-200 rounded-xl px-4 py-2 text-xs text-slate-600">
-            <span className="font-bold text-slate-800">Quick Test Credentials:</span> Customer (<code className="text-blue-600">customer@example.com</code>) • Courier (<code className="text-blue-600">courier1@swiftdrop.lk</code>) • Admin (<code className="text-blue-600">admin@swiftdrop.lk</code>) — Password: <code className="text-slate-800">Password@123 / Role@123!</code>
-          </div>
+          <p className="mt-8 text-sm text-slate-500">Authentication is available. Delivery operations and tracking are coming in a later milestone.</p>
         </div>
       </section>
 

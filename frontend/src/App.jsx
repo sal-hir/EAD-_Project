@@ -1,20 +1,14 @@
-import React, { useEffect } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate, useSearchParams, useNavigate } from 'react-router-dom';
+import React from 'react';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
-import { SocketProvider } from './context/SocketContext';
+import { OAuthCallback } from './pages/OAuthCallback';
+import { MilestoneUnavailable } from './components/MilestoneUnavailable';
 import { Navbar } from './components/Navbar';
 
 // Pages
 import { Home } from './pages/Home';
 import { Login } from './pages/Login';
 import { Register } from './pages/Register';
-import { PublicTracking } from './pages/PublicTracking';
-import { CustomerDashboard } from './pages/customer/CustomerDashboard';
-import { CreateParcel } from './pages/customer/CreateParcel';
-import { ParcelDetail } from './pages/customer/ParcelDetail';
-import { CourierDashboard } from './pages/courier/CourierDashboard';
-import { MerchantDashboard } from './pages/merchant/MerchantDashboard';
-import { AdminDashboard } from './pages/admin/AdminDashboard';
 
 // Protected Route Guard
 const ProtectedRoute = ({ children, allowedRoles }) => {
@@ -39,41 +33,11 @@ const ProtectedRoute = ({ children, allowedRoles }) => {
   return children;
 };
 
-// OAuth Callback Route
-const OAuthCallback = () => {
-  const [params] = useSearchParams();
-  const navigate = useNavigate();
-  const { handleOAuthCallback } = useAuth();
-
-  useEffect(() => {
-    const token = params.get('token');
-    const role = params.get('role');
-    if (token) {
-      handleOAuthCallback(token, role);
-      if (role === 'COURIER') navigate('/courier');
-      else if (role === 'MERCHANT') navigate('/merchant');
-      else if (role === 'ADMIN' || role === 'DISPATCHER') navigate('/admin');
-      else navigate('/customer');
-    } else {
-      navigate('/login');
-    }
-  }, [params]);
-
-  return (
-    <div className="min-h-screen flex items-center justify-center">
-      <div className="text-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-4 border-blue-600 border-r-transparent mx-auto mb-2" />
-        <p className="text-sm font-semibold text-slate-600">Completing login...</p>
-      </div>
-    </div>
-  );
-};
-
 export const App = () => {
   return (
     <Router>
       <AuthProvider>
-        <SocketProvider>
+
           <div className="min-h-screen flex flex-col bg-slate-50 text-slate-900">
             <Navbar />
             <main className="flex-1">
@@ -82,8 +46,8 @@ export const App = () => {
                 <Route path="/" element={<Home />} />
                 <Route path="/login" element={<Login />} />
                 <Route path="/register" element={<Register />} />
-                <Route path="/track" element={<PublicTracking />} />
-                <Route path="/track/:trackingNumber" element={<PublicTracking />} />
+                <Route path="/track" element={<MilestoneUnavailable title="Parcel tracking" />} />
+                <Route path="/track/:trackingNumber" element={<MilestoneUnavailable title="Parcel tracking" />} />
                 <Route path="/auth/callback" element={<OAuthCallback />} />
 
                 {/* Customer Routes */}
@@ -91,7 +55,7 @@ export const App = () => {
                   path="/customer"
                   element={
                     <ProtectedRoute allowedRoles={['CUSTOMER', 'ADMIN']}>
-                      <CustomerDashboard />
+                      <MilestoneUnavailable title="Customer dashboard" />
                     </ProtectedRoute>
                   }
                 />
@@ -99,7 +63,7 @@ export const App = () => {
                   path="/customer/new"
                   element={
                     <ProtectedRoute allowedRoles={['CUSTOMER', 'ADMIN']}>
-                      <CreateParcel />
+                      <MilestoneUnavailable title="Create parcel" />
                     </ProtectedRoute>
                   }
                 />
@@ -109,7 +73,7 @@ export const App = () => {
                   path="/parcels/:id"
                   element={
                     <ProtectedRoute allowedRoles={['CUSTOMER', 'COURIER', 'MERCHANT', 'DISPATCHER', 'ADMIN']}>
-                      <ParcelDetail />
+                      <MilestoneUnavailable title="Parcel details" />
                     </ProtectedRoute>
                   }
                 />
@@ -119,7 +83,7 @@ export const App = () => {
                   path="/courier"
                   element={
                     <ProtectedRoute allowedRoles={['COURIER', 'ADMIN']}>
-                      <CourierDashboard />
+                      <MilestoneUnavailable title="Courier dashboard" />
                     </ProtectedRoute>
                   }
                 />
@@ -129,7 +93,7 @@ export const App = () => {
                   path="/merchant"
                   element={
                     <ProtectedRoute allowedRoles={['MERCHANT', 'ADMIN']}>
-                      <MerchantDashboard />
+                      <MilestoneUnavailable title="Merchant dashboard" />
                     </ProtectedRoute>
                   }
                 />
@@ -139,7 +103,7 @@ export const App = () => {
                   path="/admin"
                   element={
                     <ProtectedRoute allowedRoles={['ADMIN', 'DISPATCHER']}>
-                      <AdminDashboard />
+                      <MilestoneUnavailable title="Administration" />
                     </ProtectedRoute>
                   }
                 />
@@ -149,7 +113,7 @@ export const App = () => {
               </Routes>
             </main>
           </div>
-        </SocketProvider>
+
       </AuthProvider>
     </Router>
   );

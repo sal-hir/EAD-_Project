@@ -1,67 +1,52 @@
-import React, { useState } from 'react';
-import { useNavigate, Link, useLocation } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { Truck, AlertCircle, ArrowRight, Check } from 'lucide-react';
-
-const DEMO_ACCOUNTS = [
-  { role: 'Customer', email: 'customer@example.com', pass: 'Customer@123!' },
-  { role: 'Courier', email: 'courier1@swiftdrop.lk', pass: 'Courier@123!' },
-  { role: 'Merchant', email: 'merchant@shopexample.lk', pass: 'Merchant@123!' },
-  { role: 'Dispatcher', email: 'dispatcher@swiftdrop.lk', pass: 'Dispatch@123!' },
-  { role: 'Admin', email: 'admin@swiftdrop.lk', pass: 'Admin@123!' },
-];
+import { api, API_BASE_URL, authError, dashboardPath } from '../api/client';
+import { Truck, AlertCircle, ArrowRight } from 'lucide-react';
 
 export const Login = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
+  const [error, setError] = useState(new URLSearchParams(window.location.search).has('error') ? 'Google sign-in failed. Try again, or use your password for an existing password account.' : '');
+  const [googleAvailable, setGoogleAvailable] = useState(false);
+  useEffect(() => {
+    api.get('/auth/providers').then(res => setGoogleAvailable(res.data.data.google)).catch(() => setGoogleAvailable(false));
+  }, []);
   const [loading, setLoading] = useState(false);
 
   const { login } = useAuth();
   const navigate = useNavigate();
-  const location = useLocation();
-
-  const redirectByRole = (userRole) => {
-    switch (userRole) {
-      case 'ADMIN':
-      case 'DISPATCHER':
-        navigate('/admin');
-        break;
-      case 'COURIER':
-        navigate('/courier');
-        break;
-      case 'MERCHANT':
-        navigate('/merchant');
-        break;
-      default:
-        navigate('/customer');
-        break;
-    }
-  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (loading) return;
     setError('');
     setLoading(true);
 
     try {
       const user = await login(email, password);
-      redirectByRole(user.role);
+      navigate(dashboardPath(user.role));
     } catch (err) {
-      setError(err.response?.data?.message || err.message || 'Invalid email or password');
+      setError(authError(err, 'Invalid email or password'));
     } finally {
       setLoading(false);
     }
   };
 
-  const handleDemoSelect = (demo) => {
-    setEmail(demo.email);
-    setPassword(demo.pass);
-  };
-
-  const handleGoogleLogin = () => {
-    const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:4000';
-    window.location.href = `${apiUrl}/api/v1/auth/google`;
+  const handleGoogleLogin = async () => {
+    if (loading || !googleAvailable) return;
+    setLoading(true);
+    try {
+      const bytes = crypto.getRandomValues(new Uint8Array(32));
+      const base64url = (value) => btoa(String.fromCharCode(...value)).replaceAll('+', '-').replaceAll('/', '_').replaceAll('=', '');
+      const verifier = base64url(bytes);
+      const hash = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(verifier));
+      sessionStorage.setItem('swiftdrop_oauth_verifier', verifier);
+      window.location.assign(`${API_BASE_URL}/oauth2/authorization/google?challenge=${base64url(new Uint8Array(hash))}`);
+    } catch (error) {
+      setError('Google sign-in could not start. Use HTTPS or localhost and allow session storage.');
+      setLoading(false);
+    }
   };
 
   return (
@@ -72,7 +57,7 @@ export const Login = () => {
         </div>
         <h2 className="text-3xl font-extrabold text-slate-900 tracking-tight">Welcome back</h2>
         <p className="mt-2 text-sm text-slate-600">
-          Sign in to your SwiftDrop account or select a demo profile below.
+          Sign in to your SwiftDrop account.
         </p>
       </div>
 
@@ -87,10 +72,12 @@ export const Login = () => {
 
           <form onSubmit={handleSubmit} className="space-y-5">
             <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
+              <label htmlFor="email" className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
                 Email address
               </label>
               <input
+                id="email"
+                autoComplete="email"
                 type="email"
                 required
                 value={email}
@@ -102,11 +89,13 @@ export const Login = () => {
 
             <div>
               <div className="flex justify-between items-center mb-1">
-                <label className="block text-xs font-bold uppercase tracking-wider text-slate-700">
+                <label htmlFor="password" className="block text-xs font-bold uppercase tracking-wider text-slate-700">
                   Password
                 </label>
               </div>
               <input
+                id="password"
+                autoComplete="current-password"
                 type="password"
                 required
                 value={password}
@@ -141,6 +130,7 @@ export const Login = () => {
               <button
                 type="button"
                 onClick={handleGoogleLogin}
+                disabled={loading || !googleAvailable}
                 className="w-full flex justify-center items-center space-x-3 px-4 py-2.5 border border-slate-300 rounded-xl bg-white hover:bg-slate-50 text-slate-700 text-sm font-semibold shadow-sm transition"
               >
                 <svg className="w-5 h-5" viewBox="0 0 24 24">
@@ -149,27 +139,8 @@ export const Login = () => {
                   <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/>
                   <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
                 </svg>
-                <span>Sign in with Google</span>
+                <span>{googleAvailable ? 'Sign in with Google' : 'Google sign-in unavailable until configured'}</span>
               </button>
-            </div>
-          </div>
-
-          {/* Quick Demo Fill Buttons */}
-          <div className="mt-8 pt-6 border-t border-slate-100">
-            <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 text-center">
-              Quick 1-Click Demo Login:
-            </p>
-            <div className="flex flex-wrap gap-1.5 justify-center">
-              {DEMO_ACCOUNTS.map((demo) => (
-                <button
-                  key={demo.role}
-                  type="button"
-                  onClick={() => handleDemoSelect(demo)}
-                  className="px-2.5 py-1 text-xs font-semibold rounded-lg bg-slate-100 hover:bg-blue-50 hover:text-blue-600 text-slate-700 transition border border-slate-200"
-                >
-                  {demo.role}
-                </button>
-              ))}
             </div>
           </div>
 
