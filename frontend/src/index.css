@@ -2,6 +2,53 @@
 @tailwind components;
 @tailwind utilities;
 
-body {
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+@layer base {
+  :root { color-scheme: light; --swiftdrop-nav: #0f172a; --swiftdrop-primary: #2563eb; }
+  body { @apply m-0 bg-slate-50 text-slate-900 antialiased; font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; }
+  *, *::before, *::after { min-width: 0; }
+  :focus-visible { @apply outline-none ring-2 ring-blue-600 ring-offset-2; }
+  button, input, select, textarea { font: inherit; }
+  button { touch-action: manipulation; }
+  button:disabled { @apply cursor-not-allowed opacity-50; }
+  img, svg { max-width: 100%; }
+  h1, h2, h3, p, dd { overflow-wrap: anywhere; }
+  input:not([type='checkbox']):not([type='radio']), select, textarea { max-width: 100%; }
+  input:not([type='checkbox']):not([type='radio']), select { min-height: 2.75rem; }
+  textarea { min-height: 7rem; }
+  @media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; transition-duration: .01ms !important; } }
+}
+@layer components {
+  .public-container { @apply mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-10; }
+  .section-eyebrow { @apply mb-3 text-xs font-bold uppercase tracking-widest text-blue-700; }
+  .section-title { @apply text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl; }
+  .ui-button { @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold transition disabled:pointer-events-none; }
+  .ui-button-primary { @apply bg-blue-600 text-white shadow-sm hover:bg-blue-700; }
+  .ui-button-secondary { @apply border border-slate-300 bg-white text-slate-700 hover:bg-slate-50; }
+  .ui-button-danger { @apply bg-rose-600 text-white hover:bg-rose-700; }
+  .ui-button-ghost { @apply text-slate-600 hover:bg-slate-100 hover:text-slate-900; }
+  .ui-input { @apply block w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-base text-slate-900 shadow-sm placeholder:text-slate-400 focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-100 disabled:bg-slate-100 disabled:text-slate-500 sm:text-sm; }
+  .ui-input[aria-invalid='true'] { @apply border-rose-500 focus:ring-rose-100; }
+  .ui-card { @apply rounded-2xl border border-slate-200 bg-white shadow-sm; }
+  .portal-content > section { @apply w-full px-4 py-6 sm:px-6 lg:px-8; }
+  .portal-content label, .auth-content label { @apply text-sm font-medium text-slate-700; }
+  .portal-content input:not([type='checkbox']):not([type='radio']), .portal-content select, .portal-content textarea,
+  .auth-content input:not([type='checkbox']):not([type='radio']), .auth-content select, .auth-content textarea { @apply rounded-lg border-slate-300; }
+  .portal-content button, .auth-content form button { min-height: 2.75rem; }
+  .portal-content table th { @apply bg-slate-50 text-xs font-semibold text-slate-600; }
+  .portal-content table th, .portal-content table td { @apply px-4 py-3; overflow-wrap: anywhere; }
+  .portal-content table tbody tr { @apply border-t border-slate-200; }
+  .portal-content table tbody tr:hover { @apply bg-slate-50/70; }
+  .responsive-table th, .responsive-table td { @apply px-4 py-3; overflow-wrap: anywhere; }
+  .responsive-table th { @apply bg-slate-50 text-xs font-semibold text-slate-600; }
+  .responsive-table th { white-space: nowrap; overflow-wrap: normal; }
+  .responsive-table tbody tr { @apply border-t border-slate-200; }
+  .responsive-table td > div { @apply min-w-0; }
+  @media (max-width: 639px) {
+    .responsive-table { display: block; }
+    .responsive-table thead { @apply sr-only; }
+    .responsive-table tbody, .responsive-table tr { display: block; }
+    .responsive-table td { display: grid; grid-template-columns: minmax(5rem, 30%) minmax(0, 1fr); gap: .75rem; padding: .75rem 1rem; }
+    .responsive-table td::before { content: attr(data-label); font-size: .75rem; font-weight: 600; color: #64748b; }
+    .responsive-table tr + tr { border-top-width: 4px; }
+  }
 }

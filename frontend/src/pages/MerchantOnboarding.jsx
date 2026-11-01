@@ -1,6 +1,8 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { merchantApi, authError } from '../api/client';
+import { PageHeader, Input, Textarea, Button, LoadingSkeleton, EmptyState, ErrorState } from '../components/ui';
+import { StatusBadge } from '../components/StatusBadge';
 
 export const businessFields = [
   ['businessName', 'Registered business name', true, 120], ['tradingName', 'Trading name', false, 120],
@@ -23,10 +25,10 @@ export const MerchantApply = () => {
     merchantApi.get('/merchants/applications/me').then(r => { setApplication(r.data.data); setForm({ ...blank, ...r.data.data.business }); })
       .catch(e => { if (e.response?.status !== 404) setError(authError(e, 'Could not load application')); }).finally(() => setLoading(false));
   }, []);
-  return <section className={frame}><h1 className="text-2xl font-bold">Become a Merchant</h1>
+  return <section className={frame}><PageHeader title="Become a Merchant" />
     <p className="text-slate-600">Tell us about your business. Submitting an application does not grant merchant privileges.</p>
-    {error && <p role="alert" className="text-rose-700">{error}</p>}
-    {loading ? <p role="status">Loading application...</p> : application && !['PENDING', 'REJECTED'].includes(application.status) ?
+    {error && <ErrorState message={error} />}
+    {loading ? <LoadingSkeleton label="Loading application..." /> : application && !['PENDING', 'REJECTED'].includes(application.status) ?
       <Link to="/merchant/application-status" className="text-blue-700">View your application status</Link> :
       <form className="bg-white border rounded-xl p-5 grid sm:grid-cols-2 gap-4" onSubmit={async e => {
         e.preventDefault(); if (busy) return; setBusy(true); setError('');
@@ -36,12 +38,13 @@ export const MerchantApply = () => {
           navigate('/merchant/application-status', { state: { submitted: !application } });
         } catch (e) { setError(authError(e, 'Could not save application')); } finally { setBusy(false); }
       }}>
-        {businessFields.map(([key, label, required, max]) => <label className="text-sm" key={key}>{label}{required ? ' *' : ''}
-          <input required={required} maxLength={max} className="border rounded-lg p-2 block w-full mt-1"
-            type={key === 'businessEmail' ? 'email' : key === 'website' ? 'url' : 'text'}
-            value={form[key] || ''} onChange={e => setForm({ ...form, [key]: e.target.value })} />
-        </label>)}
-        <button disabled={busy} className={button}>{busy ? 'Saving...' : application ? 'Save corrections' : 'Submit application'}</button>
+        {businessFields.map(([key, label, required, max]) => {
+          const Control = ['address', 'additionalDetails'].includes(key) ? Textarea : Input;
+          return <Control key={key} label={`${label}${required ? ' *' : ''}`} required={required} maxLength={max}
+            type={key === 'businessEmail' ? 'email' : key === 'website' ? 'url' : key === 'phone' ? 'tel' : undefined}
+            value={form[key] || ''} onChange={e => setForm({ ...form, [key]: e.target.value })} />;
+        })}
+        <Button type="submit" busy={busy}>{busy ? 'Saving...' : application ? 'Save corrections' : 'Submit application'}</Button>
       </form>}
     <Link to="/merchant/application-status" className="block text-blue-700">View application status</Link>
   </section>;
@@ -62,12 +65,12 @@ export const MerchantStatus = ({ dashboard = false }) => {
     finally { setLoading(false); }
   }, [dashboard]);
   useEffect(() => { load(); }, [load]);
-  return <section className={frame}><h1 className="text-2xl font-bold">{dashboard ? 'Merchant dashboard' : 'Merchant application status'}</h1>
-    {loading ? <p role="status">Loading application...</p> : error ? <><p role="alert" className="text-rose-700">{error}</p><button onClick={load}>Retry</button></> : !application ?
-      <><p>No merchant business application yet. A merchant identity also requires business approval.</p><Link className="text-blue-700" to="/merchant/apply">Apply for your business</Link></> :
+  return <section className={frame}><PageHeader title={dashboard ? 'Merchant dashboard' : 'Merchant application status'} />
+    {loading ? <LoadingSkeleton label="Loading application..." /> : error ? <ErrorState message={error} onRetry={load} /> : !application ?
+      <EmptyState title="No merchant business application yet." description="A merchant identity also requires business approval." action={<Link className="ui-button ui-button-primary" to="/merchant/apply">Apply for your business</Link>} /> :
       <div className="bg-white border rounded-xl p-5 space-y-4">
         <h2 className="text-xl font-semibold">{application.business.businessName}</h2>
-        <p role="status">Status: {application.status}</p>
+        <p role="status">Status: <StatusBadge status={application.status} /></p>
         <p>Submitted: {new Date(application.submittedAt).toLocaleString()}</p>
         {application.status === 'PENDING' && <p>Your merchant application has been submitted and is awaiting administrator approval.</p>}
         {application.status === 'APPROVING' && <p>Your application is being approved. Account permissions are updating.</p>}

@@ -3,7 +3,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { OAuthCallback } from './pages/OAuthCallback';
 import { MilestoneUnavailable } from './components/MilestoneUnavailable';
-import { Navbar } from './components/Navbar';
+import { ApplicationLayout } from './layouts/SharedLayouts';
 
 // Pages
 import { Home } from './pages/Home';
@@ -15,6 +15,10 @@ import { AccountSettings } from './pages/AccountSettings';
 import { ForgotPassword, ResetPassword } from './pages/PasswordRecovery';
 import { MerchantApply, MerchantStatus, MerchantDashboard } from './pages/MerchantOnboarding';
 import { AdminMerchants } from './pages/AdminMerchants';
+import { PublicTracking } from './pages/PublicTracking';
+import { Pricing } from './pages/Pricing';
+import { Help } from './pages/Help';
+import { Contact } from './pages/Contact';
 
 // Protected Route Guard
 const ProtectedRoute = ({ children, allowedRoles }) => {
@@ -44,9 +48,7 @@ export const App = () => {
     <Router>
       <AuthProvider>
 
-          <div className="min-h-screen flex flex-col bg-slate-50 text-slate-900">
-            <Navbar />
-            <main className="flex-1">
+          <ApplicationLayout>
               <Routes>
                 {/* Public Routes */}
                 <Route path="/" element={<Home />} />
@@ -54,8 +56,11 @@ export const App = () => {
                 <Route path="/forgot-password" element={<ForgotPassword />} />
                 <Route path="/reset-password" element={<ResetPassword />} />
                 <Route path="/register" element={<Register />} />
-                <Route path="/track" element={<MilestoneUnavailable title="Parcel tracking" />} />
-                <Route path="/track/:trackingNumber" element={<MilestoneUnavailable title="Parcel tracking" />} />
+                <Route path="/track" element={<PublicTracking />} />
+                <Route path="/track/:trackingNumber" element={<PublicTracking />} />
+                <Route path="/pricing" element={<Pricing />} />
+                <Route path="/help" element={<Help />} />
+                <Route path="/contact" element={<Contact />} />
                 <Route path="/auth/callback" element={<OAuthCallback />} />
                 <Route path="/activate" element={<ActivateAccount />} />
                 <Route path="/account" element={<ProtectedRoute><AccountSettings /></ProtectedRoute>} />
@@ -125,8 +130,7 @@ export const App = () => {
                 {/* Fallback */}
                 <Route path="*" element={<Navigate to="/" replace />} />
               </Routes>
-            </main>
-          </div>
+          </ApplicationLayout>
 
       </AuthProvider>
     </Router>

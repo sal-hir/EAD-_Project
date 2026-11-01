@@ -73,7 +73,7 @@ it('shows rejection reason and allows controlled resubmission', async () => {
   merchantApi.post.mockResolvedValue({ data: { data: { ...application, status: 'PENDING' } } }); wrap(<MerchantStatus />);
   expect(await screen.findByText('Reason: Correct the address')).toBeTruthy();
   fireEvent.click(screen.getByRole('button', { name: 'Resubmit application' }));
-  await screen.findByText('Status: PENDING');
+  await waitFor(() => expect(screen.getByRole('status').textContent).toBe('Status: PENDING'));
   expect(merchantApi.post).toHaveBeenCalledWith('/merchants/applications/me/resubmit', { version: 2 });
 });
 it('blocks new forms while approval is processing', async () => {

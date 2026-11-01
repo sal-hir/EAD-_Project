@@ -1,5 +1,7 @@
 import React, { useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
+import { AuthPanel } from '../components/PublicWebsite';
+import { LoadingSkeleton } from '../components/ui';
 import { useAuth } from '../context/AuthContext';
 import { dashboardPath } from '../api/client';
 
@@ -22,5 +24,5 @@ export const OAuthCallback = () => {
       .then((user) => navigate(dashboardPath(user.role), { replace: true }))
       .catch(() => navigate('/login?error=google_auth_failed', { replace: true }));
   }, [handleOAuthCallback, navigate]);
-  return <div className="p-12 text-center text-slate-600" role="status">Completing Google login...</div>;
+  return <AuthPanel title="Completing Google login" description="We are verifying your sign-in and preparing your session."><LoadingSkeleton label="Completing Google login..." rows={2} /><p className="text-sm leading-6 text-slate-600">You will be redirected to your portal after verification. If sign-in cannot complete, the login page will explain how to try again.</p><Link className="ui-button ui-button-secondary" to="/login">Return to login</Link></AuthPanel>;
 };

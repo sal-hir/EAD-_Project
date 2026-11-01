@@ -10,6 +10,8 @@ const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
 async function ready(url) { for (let i = 0; i < 160; i++) { try { if ((await fetch(url)).ok) return; } catch {} await wait(250); } throw new Error('Test server did not start'); }
 async function context() {
   const c = await browser.newContext();
+  // External font availability is unrelated to this isolated integration contract.
+  await c.route(/^https:\/\/fonts\.(googleapis|gstatic)\.com\//, route => route.abort());
   for (const [from, to] of [['http://localhost:4000', auth], ['http://localhost:4001', merchant]]) {
     await c.route(`${from}/**`, async route => { const response = await route.fetch({ url: route.request().url().replace(from, to) }); await route.fulfill({ response }); });
   }
@@ -44,14 +46,14 @@ async function review(admin, name, decision) {
   const email = `applicant-${Date.now()}@onboarding.example`;
   stage = 'customer registration and shared login';
   await customer.goto(`${base}/register`); await customer.getByLabel('Full Name', { exact: true }).fill('Onboarding browser user');
-  await customer.getByLabel('Email address', { exact: true }).fill(email); await customer.getByLabel('Password', { exact: true }).fill(password);
+  await customer.getByLabel('Email address', { exact: true }).fill(email); await customer.getByLabel('Password', { exact: true }).fill(password); await customer.getByLabel('Confirm password', { exact: true }).fill(password);
   await customer.getByRole('button', { name: 'Create Account', exact: true }).click(); await customer.waitForURL(`${base}/customer`); pass();
   stage = 'password recovery through fake email inbox, single-use reset and new-password login';
   await customer.goto(`${base}/forgot-password`); await customer.getByLabel('Email address').fill(email); await customer.getByRole('button', { name: 'Send reset instructions' }).click();
   await customer.getByRole('status').filter({ hasText: 'If an eligible account exists' }).waitFor();
   for (let i = 0; i < 80 && !fs.existsSync(inbox); i++) await wait(100);
   assert(fs.existsSync(inbox)); await customer.goto(fs.readFileSync(inbox, 'utf8'));
-  await customer.getByLabel('New password').fill(replacement); await customer.getByLabel('Confirm password').fill(replacement);
+  await customer.getByLabel('New password', { exact: true }).fill(replacement); await customer.getByLabel('Confirm password', { exact: true }).fill(replacement);
   await customer.getByRole('button', { name: 'Change password' }).click(); await customer.getByText('Password changed. Sign in again with your new password.').waitFor();
   assert.equal((await customerContext.request.post(`${auth}/api/v1/auth/login`, { data: { email, password } })).status(), 401);
   const customerToken = await login(customer, email, replacement, '/customer'); pass();
@@ -78,5 +80,5 @@ async function review(admin, name, decision) {
   stage = 'existing merchant identity is approved without duplicate identity or manual role editing';
   await review(admin, 'Browser Provisioned Business', 'approve'); await existing.goto(`${base}/merchant`); await existing.getByText('Status: APPROVED', { exact: true }).waitFor(); pass();
   await customerContext.close(); await adminContext.close(); await existingContext.close();
-})().catch(error => { console.error(`FAIL: ${stage} (${error.name})`); process.exitCode = 1; })
+})().catch(error => { console.error(`FAIL: ${stage} (${error.name}) ${error.stack?.match(/onboarding\.cjs:\d+:\d+/)?.[0] || ''}`); process.exitCode = 1; })
   .finally(async () => { if (browser) await browser.close(); });

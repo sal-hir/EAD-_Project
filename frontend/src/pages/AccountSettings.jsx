@@ -1,9 +1,16 @@
 import React, { useEffect, useState } from 'react';
 import { api, API_BASE_URL, authError } from '../api/client';
 import { useAuth } from '../context/AuthContext';
+import { Link, useNavigate } from 'react-router-dom';
+import { dashboardPath } from '../api/client';
+import { PageHeader, Button, ErrorState, LoadingSkeleton } from '../components/ui';
+import { PasswordInput } from '../components/PublicWebsite';
+import { StatusBadge } from '../components/StatusBadge';
 
 export const AccountSettings = () => {
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
+  const navigate = useNavigate();
+  const [ending, setEnding] = useState(false);
   const [account, setAccount] = useState(null);
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -22,17 +29,24 @@ export const AccountSettings = () => {
       window.location.assign(`${API_BASE_URL}${response.data.data.authorizationPath}`);
     } catch (e) { setPassword(''); setError(authError(e, 'Google linking failed')); setBusy(false); }
   };
-  return <section className="max-w-lg mx-auto my-12 bg-white border rounded-xl p-6 space-y-4">
-    <h1 className="text-2xl font-bold">Account settings</h1>
-    <p>{user.email} · {user.role}</p>
-    {error && <p role="alert" className="text-rose-700">{error}</p>}
-    {!account && !error && <p role="status">Loading account...</p>}
-    {account?.googleLinked && <p role="status">Google account connected.</p>}
-    {account && !account.googleLinked && account.passwordEnabled && <form onSubmit={connect} className="space-y-4">
-      <p>Connect your verified Google account with the same email address. Confirm your current password first. Your role stays the same.</p>
-      {!account.googleAvailable && <p>Google sign-in is unavailable until configured.</p>}
-      <label className="block">Current password<input required maxLength={72} type="password" autoComplete="current-password" className="border rounded-lg p-2 block w-full" value={password} onChange={e => setPassword(e.target.value)} /></label>
-      <button disabled={busy || !account.googleAvailable} className="bg-blue-600 text-white rounded-lg px-4 py-2 disabled:opacity-50">Connect Google Account</button>
-    </form>}
+  return <section className="max-w-4xl mx-auto space-y-6">
+    <PageHeader title="Account settings" description="Your verified profile and sign-in security. Profile details are currently read-only." />
+    {error && <ErrorState message={error} />}
+    <div className="ui-card p-5 sm:p-7"><h2 className="mb-5 text-lg font-bold">Profile</h2><dl className="grid gap-5 sm:grid-cols-2">{[['Name', user.name], ['Email', user.email], ['Assigned role', user.role]].map(([label, value]) => <div key={label}><dt className="text-xs font-semibold uppercase tracking-wide text-slate-500">{label}</dt><dd className="mt-2 break-words font-medium">{value}</dd></div>)}<div><dt className="text-xs font-semibold uppercase tracking-wide text-slate-500">Account status</dt><dd className="mt-2">{typeof user.active === 'boolean' ? <StatusBadge status={user.active ? 'ACTIVE' : 'INACTIVE'} /> : 'Signed in'}</dd></div></dl></div>
+    <div className="ui-card space-y-5 p-5 sm:p-7"><h2 className="text-lg font-bold">Security</h2>
+      {!account && !error && <LoadingSkeleton label="Loading account..." rows={2} />}
+      {account?.googleLinked && <p role="status" className="rounded-lg bg-emerald-50 p-3 text-sm text-emerald-800">Google account connected.</p>}
+      {account && !account.googleLinked && <p className="text-sm text-slate-600">No Google account is connected.</p>}
+      {account?.passwordEnabled && <Link to="/forgot-password" className="ui-button ui-button-secondary">Request password recovery</Link>}
+      {account && !account.passwordEnabled && <p className="text-sm leading-6 text-slate-600">Use your connected Google account to sign in. Password recovery does not create a password for Google-only identities.</p>}
+      {account && !account.googleLinked && account.passwordEnabled && <form onSubmit={connect} className="space-y-4 border-t pt-5">
+        <h3 className="font-semibold">Connect Google</h3><p className="text-sm leading-6 text-slate-600">Connect your verified Google account with the same email address. Confirm your current password first. Your role stays the same.</p>
+        {!account.googleAvailable && <p className="text-sm text-slate-500">Google sign-in is unavailable until configured.</p>}
+        <PasswordInput label="Current password" required maxLength={72} autoComplete="current-password" disabled={busy} value={password} onChange={e => setPassword(e.target.value)} />
+        <Button type="submit" busy={busy} disabled={!account.googleAvailable}>Connect Google Account</Button>
+      </form>}
+      <p className="text-xs leading-6 text-slate-500">Keep recovery links private and sign out on shared devices. Password reset and sensitive administrator changes revoke existing sessions.</p>
+    </div>
+    <div className="ui-card flex flex-col justify-between gap-4 p-5 sm:flex-row sm:items-center"><Link className="ui-button ui-button-secondary" to={dashboardPath(user.role)}>Return to dashboard</Link><Button variant="danger" busy={ending} onClick={async () => { if (ending) return; setEnding(true); setError(''); try { await logout(); navigate('/login'); } catch { setError('Could not end your session. Please try logging out again.'); } finally { setEnding(false); } }}>Log out of account</Button></div>
   </section>;
 };

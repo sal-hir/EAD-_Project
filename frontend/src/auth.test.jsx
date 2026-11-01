@@ -132,6 +132,7 @@ describe('authentication and routing', () => {
     fireEvent.change(screen.getByPlaceholderText('Kamal Perera'), { target: { value: 'Kamal' } });
     fireEvent.change(screen.getByPlaceholderText('name@example.com'), { target: { value: customer.email } });
     fireEvent.change(document.querySelector('input[type="password"]'), { target: { value: 'Customer@123!' } });
+    fireEvent.change(screen.getByLabelText('Confirm password'), { target: { value: 'Customer@123!' } });
     fireEvent.submit(document.querySelector('form'));
     expect(await screen.findByText('password: must be at least 8 characters')).toBeTruthy();
   });

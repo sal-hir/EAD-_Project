@@ -8,6 +8,7 @@ let browser, stage = 'launch';
 const pass = () => console.log(`PASS: ${stage}`);
 async function context() {
   const c = await browser.newContext();
+  await c.route(/^https:\/\/fonts\.(googleapis|gstatic)\.com\//, route => route.abort());
   await c.route('http://localhost:4000/**', async route => {
     const response = await route.fetch({ url: route.request().url().replace('http://localhost:4000', backend) });
     await route.fulfill({ response });
@@ -52,8 +53,8 @@ async function login(page, email, destination) {
   const activation = admin.locator('a[href*="/activate#code="]'); await activation.waitFor();
   const recipientContext = await context(), recipient = await recipientContext.newPage();
   await recipient.goto(await activation.getAttribute('href'));
-  await recipient.getByLabel('New password').fill(password);
-  await recipient.getByLabel('Confirm password').fill(password);
+  await recipient.getByLabel('New password', { exact: true }).fill(password);
+  await recipient.getByLabel('Confirm password', { exact: true }).fill(password);
   await recipient.getByRole('button', { name: 'Set password' }).click();
   await recipient.getByText('Password set. You can now sign in.').waitFor();
   await login(recipient, 'provisioned@browser.example', '/courier'); pass();

@@ -6,6 +6,7 @@ export default {
   ],
   theme: {
     extend: {
+      boxShadow: { card: '0 1px 3px rgb(15 23 42 / 0.06)' },
       colors: {
         brand: {
           50: '#eff6ff',

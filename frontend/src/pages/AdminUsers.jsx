@@ -1,6 +1,8 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { api, authError } from '../api/client';
 import { useAuth } from '../context/AuthContext';
+import { PageHeader, Pagination } from '../components/ui';
+import { StatusBadge } from '../components/StatusBadge';
 
 const roles = ['MERCHANT', 'COURIER', 'DISPATCHER'];
 const initial = { name: '', email: '', phone: '', role: 'COURIER', active: true };
@@ -31,8 +33,8 @@ export const AdminUsers = () => {
     await load(result.page, search);
   };
   return <section className="max-w-6xl mx-auto p-6 space-y-6">
-    <h1 className="text-2xl font-bold">User accounts</h1>
-    <p className="text-slate-600">Provision authentication identities. Merchant business approval is a future Merchant Service operation.</p>
+    <PageHeader title="User accounts" />
+    <p className="text-slate-600">Provision authentication identities. Review merchant business applications separately under Merchant applications.</p>
     {error && <p role="alert" className="text-rose-700">{error}</p>}
     <form className="bg-white rounded-xl border p-5 grid sm:grid-cols-2 gap-4" onSubmit={e => {
       e.preventDefault(); run(async () => {
@@ -62,32 +64,30 @@ export const AdminUsers = () => {
       <label className="flex-1">Search users<input className="border rounded-lg p-2 w-full" value={search} maxLength={120} onChange={e => setSearch(e.target.value)} /></label>
       <button disabled={busy} className="border rounded-lg px-4 self-end py-2">Search</button>
     </form>
-    <div className="overflow-x-auto bg-white rounded-xl border"><table className="w-full text-sm text-left">
-      <thead><tr>{['Name', 'Email', 'Role', 'Status', 'Actions'].map(label => <th className="p-3" key={label}>{label}</th>)}</tr></thead>
+    <div className="overflow-x-auto bg-white rounded-xl border"><table className="responsive-table w-full text-sm text-left">
+      <thead><tr>{['Name', 'Email', 'Role', 'Status', 'Actions'].map(label => <th scope="col" className="p-3" key={label}>{label}</th>)}</tr></thead>
       <tbody>{result.users.map(user => {
         const protectedUser = user.role === 'ADMIN' || user.id === actor.id;
         return <tr className="border-t" key={user.id}>
-          <td className="p-3">{user.name}</td><td className="p-3">{user.email}</td>
-          <td className="p-3">{protectedUser ? user.role : <>
+          <td data-label="Name" className="p-3">{user.name}</td><td data-label="Email" className="p-3">{user.email}</td>
+          <td data-label="Role" className="p-3"><div>{protectedUser ? user.role : <>
             <select aria-label={`Role for ${user.email}`} value={selectedRoles[user.id] || user.role}
               onChange={e => setSelectedRoles({ ...selectedRoles, [user.id]: e.target.value })}>
               {user.role === 'CUSTOMER' && <option>CUSTOMER</option>}{roles.map(role => <option key={role}>{role}</option>)}
             </select>
             <button disabled={busy || !(selectedRoles[user.id] && selectedRoles[user.id] !== user.role)} className="block text-blue-700 disabled:text-slate-400"
               onClick={() => run(() => post(user.id, 'role', { role: selectedRoles[user.id] }))}>Change role</button>
-          </>}</td>
-          <td className="p-3">{user.active ? 'Active' : 'Inactive'}</td>
-          <td className="p-3 space-x-3">
+          </>}</div></td>
+          <td data-label="Status" className="p-3"><StatusBadge status={user.active ? 'ACTIVE' : 'INACTIVE'} /></td>
+          <td data-label="Actions" className="p-3"><div className="flex flex-wrap gap-2">
             {!protectedUser && <><button disabled={busy} className="text-blue-700" onClick={() => run(() => post(user.id, 'status', { active: !user.active }))}>{user.active ? 'Deactivate' : 'Activate'}</button>
               <button disabled={busy} className="text-blue-700" onClick={() => run(() => post(user.id, 'activation'))}>New activation link</button></>}
             <button disabled={busy} className="text-blue-700" onClick={() => run(async () => setAudit((await api.get(`/auth/admin/users/${user.id}/audit`)).data.data))}>Audit</button>
-          </td>
+          </div></td>
         </tr>;
       })}</tbody>
     </table></div>
-    <div className="flex gap-4"><button disabled={busy || result.page === 0} onClick={() => run(() => load(result.page - 1, search))}>Previous</button>
-      <span>Page {result.page + 1} of {Math.max(1, result.pages)}</span>
-      <button disabled={busy || result.page + 1 >= result.pages} onClick={() => run(() => load(result.page + 1, search))}>Next</button></div>
+    <Pagination page={result.page} pages={result.pages} disabled={busy} onPageChange={page => run(() => load(page, search))} />
     {audit && <div className="bg-white border rounded-xl p-4"><h2 className="font-semibold">Identity audit (latest 100)</h2>
       {audit.length === 0 && <p>No recorded identity changes.</p>}
       {audit.map(event => <p key={event.id} className="text-sm break-all">{new Date(event.createdAt).toLocaleString()} · {event.action} · {event.detail} · Actor: {event.actorId || 'Local bootstrap'}</p>)}

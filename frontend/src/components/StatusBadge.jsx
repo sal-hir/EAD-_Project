@@ -2,6 +2,12 @@ import React from 'react';
 import { CheckCircle2, Clock, Truck, Package, XCircle, AlertCircle } from 'lucide-react';
 
 const STATUS_CONFIG = {
+  PENDING: { label: 'PENDING', bg: 'bg-amber-50 text-amber-800 border-amber-200', icon: Clock },
+  APPROVING: { label: 'APPROVING', bg: 'bg-blue-50 text-blue-700 border-blue-200', icon: Clock },
+  APPROVED: { label: 'APPROVED', bg: 'bg-emerald-50 text-emerald-800 border-emerald-200', icon: CheckCircle2 },
+  REJECTED: { label: 'REJECTED', bg: 'bg-rose-50 text-rose-700 border-rose-200', icon: XCircle },
+  ACTIVE: { label: 'Active', bg: 'bg-emerald-50 text-emerald-800 border-emerald-200', icon: CheckCircle2 },
+  INACTIVE: { label: 'Inactive', bg: 'bg-slate-100 text-slate-700 border-slate-300', icon: XCircle },
   CREATED: {
     label: 'Order Placed',
     bg: 'bg-blue-50 text-blue-700 border-blue-200',
@@ -54,8 +60,8 @@ export const StatusBadge = ({ status }) => {
   const Icon = config.icon;
 
   return (
-    <span className={`inline-flex items-center space-x-1.5 px-2.5 py-1 rounded-full text-xs font-semibold border ${config.bg}`}>
-      <Icon className="w-3.5 h-3.5" />
+    <span className={`inline-flex items-center whitespace-nowrap space-x-1.5 px-2.5 py-1 rounded-full text-xs font-semibold border ${config.bg}`}>
+      <Icon aria-hidden="true" className="w-3.5 h-3.5 shrink-0" />
       <span>{config.label}</span>
     </span>
   );
