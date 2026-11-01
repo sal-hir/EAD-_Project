@@ -12,7 +12,7 @@ import java.util.*;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.jdbc.core.JdbcTemplate;
 
 @Service
 public class OAuthService {
@@ -20,11 +20,9 @@ public class OAuthService {
     private final OAuthCodeRepository codes;
     private final JwtService jwt;
     private final IdentityService identities;
-    private final RefreshSessionRepository sessions;
-    private final PasswordEncoder passwords;
-    public OAuthService(UserRepository users, OAuthCodeRepository codes, JwtService jwt, IdentityService identities,
-            RefreshSessionRepository sessions, PasswordEncoder passwords) {
-        this.users = users; this.codes = codes; this.jwt = jwt;this.identities=identities;this.sessions=sessions;this.passwords=passwords;
+    private final JdbcTemplate db;
+    public OAuthService(UserRepository users, OAuthCodeRepository codes, JwtService jwt, IdentityService identities, JdbcTemplate db) {
+        this.users=users; this.codes=codes; this.jwt=jwt; this.identities=identities; this.db=db;
     }
     public static byte[] digest(String value) {
         try { return MessageDigest.getInstance("SHA-256").digest(value.getBytes(StandardCharsets.US_ASCII)); }
@@ -33,44 +31,46 @@ public class OAuthService {
     public static String challenge(String verifier) { return Base64.getUrlEncoder().withoutPadding().encodeToString(digest(verifier)); }
     private static String hash(String code) { return HexFormat.of().formatHex(digest(code)); }
     private static ApiException denied() { return new ApiException(HttpStatus.UNAUTHORIZED, "Google authentication unavailable for this identity"); }
-    private User linkingUser(UUID userId,UUID sessionId) {
-        User user=users.lockById(userId).filter(User::isActive).orElseThrow(OAuthService::denied);
-        if(sessionId==null||sessions.lockById(sessionId).filter(s->s.isActive()&&s.getUserId().equals(userId)).isEmpty())throw denied();
-        return user;
+    public static class ActivationRequired extends ApiException {
+        public ActivationRequired(){super(HttpStatus.UNAUTHORIZED,"Complete existing account activation before using Google");}
     }
-    @Transactional public String prepareLink(UUID userId,UUID sessionId,String password,String challenge) {
-        User user=linkingUser(userId,sessionId);
-        if(user.getPasswordHash()==null||!passwords.matches(password,user.getPasswordHash()))throw denied();
-        if(user.getGoogleSubject()!=null)throw new ApiException(HttpStatus.CONFLICT,"A Google account is already connected");
-        return identities.issueAction(userId,"GOOGLE_LINK",sessionId,challenge,Instant.now().plusSeconds(300));
-    }
-    @Transactional public IdentityService.Action beginLink(String token,String challenge) {
-        var action=identities.consumeAction(token,"GOOGLE_LINK");
-        if(!MessageDigest.isEqual(action.challenge().getBytes(StandardCharsets.US_ASCII),challenge.getBytes(StandardCharsets.US_ASCII)))throw denied();
-        linkingUser(action.userId(),action.sessionId());return action;
-    }
-    @Transactional public User completeLink(UUID userId,UUID sessionId,String subject,String email,Boolean verified) {
-        User user=linkingUser(userId,sessionId);
-        if(!Boolean.TRUE.equals(verified)||subject==null||subject.isBlank()||email==null||!user.getEmail().equals(AuthService.normalize(email)))throw denied();
-        if(user.getGoogleSubject()!=null||users.findByGoogleSubject(subject).isPresent())throw new ApiException(HttpStatus.CONFLICT,"Google identity is already connected");
-        user.setGoogleSubject(subject);users.saveAndFlush(user);
-        identities.audit(userId,userId,"GOOGLE_LINKED","Password reauthentication and verified OIDC identity");
-        return user;
+    private ApiException conflict(User target) {
+        identities.securityAudit(target.getId(),"GOOGLE_LINK_CONFLICT","Verified Google identity conflicts with an existing association");
+        return denied();
     }
     @Transactional
     public User googleUser(String subject, String email, Boolean verified, String name) {
-        if (!Boolean.TRUE.equals(verified) || subject == null || subject.isBlank() || email == null || email.isBlank()) throw denied();
-        Optional<User> existing = users.findByGoogleSubject(subject);
-        if (existing.isPresent()) {
-            if (!existing.get().isActive()) throw denied();
-            return existing.get();
+        if (!Boolean.TRUE.equals(verified) || subject == null || subject.isBlank() || subject.length()>255 || email == null || email.isBlank()) throw denied();
+        String normalized=AuthService.normalize(email);
+        if(normalized.length()>254)throw denied();
+        // Shared guard locks before identities, matching administrative mutations.
+        // This also serializes concurrent first logins for absent users; unique
+        // email/subject constraints remain the final database protection.
+        db.queryForObject("select id from auth.identity_admin_guard where id=1 for update",Integer.class);
+        Optional<User> existing=users.findByGoogleSubject(subject);
+        Optional<User> matched=users.findByEmail(normalized);
+        if(existing.isPresent()) {
+            User user=users.lockById(existing.get().getId()).orElseThrow(OAuthService::denied);
+            if(!user.isActive())throw denied();
+            if(matched.isPresent()&&!matched.get().getId().equals(user.getId()))throw conflict(matched.get());
+            return user; // Stable provider subject, never move an established association.
         }
-        // Email matching alone cannot attach a new identity to an existing password account.
-        // Explicit authenticated linking is deliberately deferred.
-        String normalized = AuthService.normalize(email);
-        if (users.existsByEmail(normalized)) throw denied();
-        String displayName = name == null || name.isBlank() ? "SwiftDrop customer" : name.strip();
-        User user = new User(displayName.substring(0, Math.min(displayName.length(), 120)), normalized, null, null);
+        if(matched.isPresent()) {
+            User user=users.lockById(matched.get().getId()).orElseThrow(OAuthService::denied);
+            if(!user.isActive())throw denied();
+            if(user.getGoogleSubject()!=null)throw conflict(user);
+            // No separate local email-verification flag exists. Preserve current
+            // activation requirements: a provisioned credential-free user must
+            // complete its invitation; verified Google proof cannot bypass that.
+            if(user.getPasswordHash()==null)throw new ActivationRequired();
+            user.setGoogleSubject(subject);
+            identities.invalidate(user); // Adding a credential revokes older sessions/codes.
+            users.saveAndFlush(user);
+            identities.audit(user.getId(),user.getId(),"GOOGLE_AUTO_LINKED","Verified Google email; existing activation requirements satisfied");
+            return user;
+        }
+        String displayName=name==null||name.isBlank()?"SwiftDrop customer":name.strip();
+        User user=new User(displayName.substring(0,Math.min(displayName.length(),120)),normalized,null,null);
         user.setGoogleSubject(subject);
         return users.saveAndFlush(user);
     }

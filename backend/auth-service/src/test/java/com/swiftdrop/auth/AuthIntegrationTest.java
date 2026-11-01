@@ -156,11 +156,11 @@ class AuthIntegrationTest {
             .andExpect(status().isForbidden())
             .andExpect(header().doesNotExist("Access-Control-Allow-Origin"));
     }
-    @Test void googleRequiresVerifiedIdentityAndDoesNotLinkPasswordAccountByEmail() throws Exception {
+    @Test void googleRequiresVerifiedIdentityAndAutomaticallyLinksEligiblePasswordAccount() throws Exception {
         customer();
         assertThatThrownBy(() -> oauth.googleUser("subject", EMAIL, false, "Google user")).isInstanceOf(RuntimeException.class);
-        assertThatThrownBy(() -> oauth.googleUser("subject", EMAIL, true, "Google user")).isInstanceOf(RuntimeException.class);
-        assertThat(users.findByEmail(EMAIL).orElseThrow().getGoogleSubject()).isNull();
+        assertThat(oauth.googleUser("subject", EMAIL, true, "Google user").getId()).isEqualTo(users.findByEmail(EMAIL).orElseThrow().getId());
+        assertThat(users.findByEmail(EMAIL).orElseThrow().getGoogleSubject()).isEqualTo("subject");
         User google = oauth.googleUser("google-subject", "google@example.lk", true, "Google user");
         assertThat(google.getPasswordHash()).isNull(); assertThat(google.getRole()).isEqualTo(Role.CUSTOMER);
         assertThat(oauth.googleUser("google-subject", "google@example.lk", true, "Google user").getId()).isEqualTo(google.getId());

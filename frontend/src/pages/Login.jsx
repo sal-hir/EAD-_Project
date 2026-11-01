@@ -8,7 +8,7 @@ import { Input, Button, ErrorState } from '../components/ui';
 export const Login = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [error, setError] = useState(new URLSearchParams(window.location.search).has('error') ? 'Google sign-in failed. Try again, or use your password for an existing password account.' : '');
+  const [error, setError] = useState(new URLSearchParams(window.location.search).get('error') === 'google_activation_required' ? 'Complete the activation or verification required for your existing account, then try Google again. Ask your administrator for a new activation link if needed.' : new URLSearchParams(window.location.search).has('error') ? 'Google sign-in failed. Try again with your verified Google account, or use your password.' : '');
   const [googleAvailable, setGoogleAvailable] = useState(false);
   useEffect(() => {
     api.get('/auth/providers').then(res => setGoogleAvailable(res.data.data.google)).catch(() => setGoogleAvailable(false));

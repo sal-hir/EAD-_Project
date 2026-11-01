@@ -17,7 +17,7 @@ const faqs = [
   ['Delivery and Courier', 'Are courier assignments available?', 'Courier accounts can sign in, but delivery assignments and courier operations are not implemented in this release.'],
   ['Delivery and Courier', 'Are delivery times guaranteed?', 'No delivery guarantees or service schedules are published here. Confirmed delivery information must come from the connected delivery service when it becomes available.'],
   ['Password and Account Security', 'How do I reset a forgotten password?', 'Open Forgot password, enter your email and follow the single-use link if your account is eligible and mail delivery is configured. Links expire after 20 minutes. You must sign in again after changing the password.'],
-  ['Password and Account Security', 'Can I reset a Google-only account password?', 'Use Google sign-in for a Google-only account. Password recovery does not create a password for it. You can explicitly connect a matching verified Google account to a password-enabled account from Account settings.'],
+  ['Password and Account Security', 'Can I reset a Google-only account password?', 'Use Google sign-in for a Google-only account. Password recovery does not create a password for it. Signing in with Google automatically connects a matching verified email to an active account that has completed its required activation.'],
 ];
 const slug = value => value.toLowerCase().replaceAll(' ', '-');
 export function Help() {

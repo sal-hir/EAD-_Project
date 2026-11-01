@@ -43,13 +43,19 @@ Google uses Spring Security OIDC (state, nonce, ID token verification), with a
 five-minute JDBC session only for the redirect handshake. The 60-second exchange
 code is randomly generated, hashed at rest, bound to a SHA-256 browser verifier,
 and consumed under a database row lock. No reusable token appears in a URL.
-Only verified Google emails are accepted. A returning linked Google subject can
-sign in. New identities become CUSTOMER. A password account with the same email
-is rejected rather than silently linked; sign in with its password. Explicit linking now requires password reauthentication and a one-use intent bound to
-the current browser session. The verified Google email must match the signed-in
-identity; Google subjects remain unique and linking preserves roles. See the README
-for the bootstrap, activation and ADMIN-only identity-management policy. Sensitive
-identity changes increment the user authentication version and revoke sessions.
+Only verified Google emails are accepted. Stable Google subjects resolve existing
+identities. A new subject automatically connects to a matching active password-enabled
+account after its current activation requirements are satisfied, preserving identity,
+credentials and role. Credential-free pending accounts must activate first; the
+application has no separate local email-verification flag. If no match exists, Google
+signup creates CUSTOMER. Conflicting associations fail closed and are audited in a
+separate transaction so security events survive rejection. A shared database guard
+serializes first-login creation/linking, with unique email/subject constraints as the
+final protection. Adding a credential revokes older sessions and codes through the
+existing authentication version before the usual OAuth exchange issues a new session.
+Manual linking, its password reauthentication and its endpoint are removed. Existing
+provider records and applied migrations remain intact. See the README for activation,
+bootstrap and ADMIN identity management.
 
 Password recovery returns a generic response before asynchronous eligibility/mail
 work. Shared database rate limits bound email/IP requests. Random reset tokens have

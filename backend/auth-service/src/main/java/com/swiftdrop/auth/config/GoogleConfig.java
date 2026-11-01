@@ -3,7 +3,6 @@ package com.swiftdrop.auth.config;
 import com.swiftdrop.auth.service.OAuthService;
 import jakarta.servlet.http.*;
 import java.io.IOException;
-import java.util.UUID;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.*;
@@ -46,15 +45,7 @@ public class GoogleConfig {
                     throw new OAuth2AuthenticationException(new OAuth2Error("invalid_request"));
                 }
                 HttpSession session=request.getSession();
-                session.removeAttribute("google_link_user");session.removeAttribute("google_link_session");
-                String link=request.getParameter("link");
-                if(link!=null) {
-                    com.swiftdrop.auth.service.IdentityService.Action action;
-                    try { action=oauth.beginLink(link,challenge); }
-                    catch(com.swiftdrop.auth.exception.ApiException ex) { throw new OAuth2AuthenticationException(new OAuth2Error("invalid_request")); }
-                    session.setAttribute("google_link_user",action.userId());
-                    session.setAttribute("google_link_session",action.sessionId());
-                }
+                if(request.getParameter("link")!=null)throw new OAuth2AuthenticationException(new OAuth2Error("invalid_request"));
                 session.setAttribute("browser_challenge", challenge);
                 return resolver.resolve(request, id);
             }
@@ -75,17 +66,15 @@ public class GoogleConfig {
                         OidcUser principal = (OidcUser) authentication.getPrincipal();
                         HttpSession session = request.getSession(false);
                         String challenge = session == null ? null : (String) session.getAttribute("browser_challenge");
-                        UUID linkUser=session==null?null:(UUID)session.getAttribute("google_link_user");
-                        var user = linkUser==null
-                            ? oauth.googleUser(principal.getSubject(), principal.getEmail(), principal.getEmailVerified(), principal.getFullName())
-                            : oauth.completeLink(linkUser,(UUID)session.getAttribute("google_link_session"),principal.getSubject(),principal.getEmail(),principal.getEmailVerified());
+                        var user=oauth.googleUser(principal.getSubject(),principal.getEmail(),principal.getEmailVerified(),principal.getFullName());
                         String code = oauth.createCode(user, challenge);
                         invalidate(request);
                         response.setHeader("Cache-Control", "no-store");
                         response.setHeader("Referrer-Policy", "no-referrer");
                         // Fragment is not sent in HTTP requests or Referer headers.
                         response.sendRedirect(frontend + "/auth/callback#code=" + code);
-                    } catch (RuntimeException ex) { failure(request, response, frontend); }
+                    } catch (OAuthService.ActivationRequired ex) { failure(request,response,frontend,"google_activation_required"); }
+                    catch (RuntimeException ex) { failure(request, response, frontend); }
                 })
                 .failureHandler((request, response, exception) -> failure(request, response, frontend)));
         return http.build();
@@ -95,7 +84,11 @@ public class GoogleConfig {
         if (session != null) session.invalidate();
     }
     private static void failure(HttpServletRequest request, HttpServletResponse response, String frontend) throws IOException {
+        failure(request,response,frontend,"google_auth_failed");
+    }
+    private static void failure(HttpServletRequest request,HttpServletResponse response,String frontend,String error)throws IOException {
         invalidate(request);
-        response.sendRedirect(frontend + "/login?error=google_auth_failed");
+        response.setHeader("Cache-Control","no-store");
+        response.sendRedirect(frontend + "/login?error="+error);
     }
 }

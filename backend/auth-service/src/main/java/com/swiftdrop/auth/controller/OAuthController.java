@@ -4,8 +4,6 @@ import com.swiftdrop.auth.dto.AuthDtos.*;
 import com.swiftdrop.auth.service.OAuthService;
 import com.swiftdrop.auth.service.BrowserSessionService;
 import com.swiftdrop.auth.security.SessionCookies;
-import com.swiftdrop.auth.dto.IdentityDtos.LinkRequest;
-import com.swiftdrop.auth.dto.IdentityDtos.LinkResult;
 import com.swiftdrop.auth.repository.UserRepository;
 import java.util.UUID;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
@@ -30,13 +28,6 @@ public class OAuthController {
     public ResponseEntity<ApiResponse<Map<String,Boolean>>> account(JwtAuthenticationToken authentication) {
         var user=users.findById(UUID.fromString(authentication.getName())).orElseThrow();
         return ResponseEntity.ok().cacheControl(CacheControl.noStore()).body(ApiResponse.ok(Map.of("googleLinked",user.getGoogleSubject()!=null,"passwordEnabled",user.getPasswordHash()!=null,"googleAvailable",registrations.findByRegistrationId("google")!=null)));
-    }
-    @PostMapping("/google/link")
-    public ResponseEntity<ApiResponse<LinkResult>> link(JwtAuthenticationToken authentication,@Valid @RequestBody LinkRequest request) {
-        if(registrations.findByRegistrationId("google")==null)throw new com.swiftdrop.auth.exception.ApiException(HttpStatus.BAD_REQUEST,"Google login is unavailable");
-        String sid=authentication.getToken().getClaimAsString("sid");
-        String ticket=oauth.prepareLink(UUID.fromString(authentication.getName()),sid==null?null:UUID.fromString(sid),request.password(),request.challenge());
-        return ResponseEntity.ok().cacheControl(CacheControl.noStore()).body(ApiResponse.ok(new LinkResult("/oauth2/authorization/google?challenge="+request.challenge()+"&link="+ticket)));
     }
     @GetMapping("/providers")
     public ApiResponse<Map<String, Boolean>> providers() { return ApiResponse.ok(Map.of("google", registrations.findByRegistrationId("google") != null)); }

@@ -207,11 +207,12 @@ describe('five-role identity flows', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Set password' }));
     expect(await screen.findByRole('alert')).toHaveProperty('textContent', 'Activation expired');
   });
-  it('shows account linking only for an unlinked password identity', async () => {
+  it('explains automatic linking without a manual action or password prompt', async () => {
     refreshSession.mockResolvedValue(result.data.data);
     api.get.mockImplementation(path => Promise.resolve({ data: { data: path === '/auth/account' ? { passwordEnabled: true, googleLinked: false, googleAvailable: true } : customer } }));
     window.history.replaceState(null, '', '/account'); render(<App />);
-    expect(await screen.findByRole('button', { name: 'Connect Google Account' })).toBeTruthy();
-    expect(screen.getByLabelText('Current password')).toBeTruthy();
+    expect(await screen.findByText(/Sign in with Google using the same verified email/)).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Connect Google Account' })).toBeNull();
+    expect(screen.queryByLabelText('Current password')).toBeNull();
   });
 });

@@ -30,7 +30,7 @@ public class IdentityService {
         this.users=users;this.db=db;this.passwords=passwords;this.validator=validator;this.frontend=frontend;
     }
     static ApiException forbidden(String message) { return new ApiException(HttpStatus.FORBIDDEN,message); }
-    public static ApiException invalidAction() { return new ApiException(HttpStatus.UNAUTHORIZED,"Activation or linking request expired, unavailable or already used"); }
+    public static ApiException invalidAction() { return new ApiException(HttpStatus.UNAUTHORIZED,"Activation request expired, unavailable or already used"); }
     private void guard() { db.queryForObject("select id from auth.identity_admin_guard where id=1 for update",Integer.class); }
     private User admin(UUID actor) {
         return users.findById(actor).filter(u->u.isActive()&&u.getRole()==Role.ADMIN).orElseThrow(()->forbidden("Administrator access required"));
@@ -48,6 +48,10 @@ public class IdentityService {
     public void audit(UUID actor,UUID target,String action,String detail) {
         db.update("insert into auth.identity_audit(id,actor_id,target_id,action,detail,created_at) values(?,?,?,?,?,?)",
             UUID.randomUUID(),actor,target,action,detail,Timestamp.from(Instant.now()));
+    }
+    @Transactional(propagation=org.springframework.transaction.annotation.Propagation.REQUIRES_NEW)
+    public void securityAudit(UUID target,String action,String detail) {
+        audit(null,target,action,detail);
     }
     public void invalidate(User user) {
         user.invalidateCredentials();

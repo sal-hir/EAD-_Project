@@ -19,6 +19,9 @@ import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.*;
 import org.junit.jupiter.api.*;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.*;
@@ -41,12 +44,13 @@ class GoogleOidcIntegrationTest {
     static RSAKey key;
     static String issuer, nonce;
     static boolean wrongNonce;
+    static String invalidProof="";
     static String providerSubject="mock-google-subject",providerEmail="oidc-customer@example.lk";
     @Autowired MockMvc mvc;
     @Autowired UserRepository users;
     @Autowired PasswordEncoder passwords;
     @Autowired BrowserSessionService sessions;
-    @BeforeEach void resetProvider(){wrongNonce=false;providerSubject="mock-google-subject";providerEmail="oidc-customer@example.lk";}
+    @BeforeEach void resetProvider(){wrongNonce=false;invalidProof="";providerSubject="mock-google-subject";providerEmail="oidc-customer@example.lk";}
 
     @TestConfiguration
     static class Provider {
@@ -63,14 +67,14 @@ class GoogleOidcIntegrationTest {
                 try {
                     String request = new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
                     if (!request.contains("code=provider-code")) throw new IllegalArgumentException("Unexpected code");
-                    var claims = new JWTClaimsSet.Builder().issuer(issuer).audience("test-client")
+                    var claims = new JWTClaimsSet.Builder().issuer(invalidProof.equals("issuer")?"http://invalid.example":issuer).audience(invalidProof.equals("audience")?"wrong-client":"test-client")
                         .subject(providerSubject).issueTime(Date.from(Instant.now()))
-                        .expirationTime(Date.from(Instant.now().plusSeconds(300)))
+                        .expirationTime(Date.from(Instant.now().plusSeconds(invalidProof.equals("expiry")?-600:300)))
                         .claim("nonce", wrongNonce ? "invalid-nonce" : nonce)
-                        .claim("email", providerEmail).claim("email_verified", true)
+                        .claim("email", providerEmail).claim("email_verified", !invalidProof.equals("email"))
                         .claim("name", "Google customer").build();
                     var jwt = new SignedJWT(new JWSHeader.Builder(JWSAlgorithm.RS256).keyID(key.getKeyID()).build(), claims);
-                    jwt.sign(new RSASSASigner(key));
+                    jwt.sign(new RSASSASigner(invalidProof.equals("signature")?new RSAKeyGenerator(2048).generate():key));
                     byte[] body = JSON.writeValueAsBytes(Map.of("access_token", "test-provider-access", "token_type", "Bearer",
                         "expires_in", 300, "scope", "openid", "id_token", jwt.serialize()));
                     exchange.getResponseHeaders().set("Content-Type", "application/json");
@@ -130,18 +134,14 @@ class GoogleOidcIntegrationTest {
             .andReturn().getResponse();
         var params = query(start.getRedirectedUrl()); nonce = params.get("nonce");
         mvc.perform(get("/login/oauth2/code/google").cookie(start.getCookie("SESSION"))
-            .param("state",params.get("state")).param("code","provider-code"))
+            .param("state",invalidProof.equals("state")?"wrong-state":params.get("state")).param("code","provider-code"))
             .andExpect(redirectedUrl("http://localhost:3000/login?error=google_auth_failed"));
     }
-    @Test void explicitLinkTraversesSignedOidcCallbackAndPreservesStaffRole() throws Exception {
-        providerSubject="linked-courier-subject";providerEmail="linked-courier@example.lk";
-        User user=new User("Linked courier",providerEmail,passwords.encode("LinkTest@123!"),null);user.setRole(Role.COURIER);users.saveAndFlush(user);
+    @ParameterizedTest @EnumSource(Role.class) void automaticLinkTraversesSignedOidcCallbackAndPreservesEveryRole(Role role) throws Exception {
+        providerSubject="auto-linked-"+role;providerEmail="auto-linked-"+role.name().toLowerCase()+"@example.lk";
+        User user=new User("Linked courier",providerEmail,passwords.encode("LinkTest@123!"),null);user.setRole(role);users.saveAndFlush(user);
         var browser=sessions.start(user.getId(),null);String verifier="l".repeat(43);
-        var prepared=mvc.perform(post("/api/v1/auth/google/link").header("Authorization","Bearer "+browser.login().token())
-            .contentType(MediaType.APPLICATION_JSON).content(JSON.writeValueAsBytes(Map.of("password","LinkTest@123!","challenge",OAuthService.challenge(verifier)))))
-            .andExpect(status().isOk()).andReturn().getResponse();
-        String path=JSON.readTree(prepared.getContentAsString()).path("data").path("authorizationPath").asText();
-        var start=mvc.perform(get(path)).andExpect(status().is3xxRedirection()).andReturn().getResponse();
+        var start=mvc.perform(get("/oauth2/authorization/google").param("challenge",OAuthService.challenge(verifier))).andExpect(status().is3xxRedirection()).andReturn().getResponse();
         var params=query(start.getRedirectedUrl());nonce=params.get("nonce");
         var callback=mvc.perform(get("/login/oauth2/code/google").cookie(start.getCookie("SESSION"))
             .param("state",params.get("state")).param("code","provider-code"))
@@ -151,7 +151,26 @@ class GoogleOidcIntegrationTest {
         mvc.perform(post("/api/v1/auth/oauth/exchange").header(SessionCookies.CSRF_HEADER,"1")
             .contentType(MediaType.APPLICATION_JSON).content(JSON.writeValueAsBytes(Map.of("code",code,"verifier",verifier))))
             .andExpect(status().isOk()).andExpect(jsonPath("$.data.user.id").value(user.getId().toString()))
-            .andExpect(jsonPath("$.data.user.role").value("COURIER"));
+            .andExpect(jsonPath("$.data.user.role").value(role.name()));
         assertThat(users.findById(user.getId()).orElseThrow().getGoogleSubject()).isEqualTo(providerSubject);
     }
+    @ParameterizedTest @ValueSource(strings={"issuer","audience","expiry","signature","email","state"})
+    void invalidSignedProviderProofNeverCreatesOrLinks(String proof)throws Exception {
+        invalidProof=proof;providerSubject="invalid-"+proof;providerEmail="invalid-"+proof+"@example.lk";
+        var start=mvc.perform(get("/oauth2/authorization/google").param("challenge","v".repeat(43))).andReturn().getResponse();
+        var params=query(start.getRedirectedUrl());nonce=params.get("nonce");
+        mvc.perform(get("/login/oauth2/code/google").cookie(start.getCookie("SESSION")).param("state",invalidProof.equals("state")?"wrong-state":params.get("state")).param("code","provider-code"))
+            .andExpect(redirectedUrl("http://localhost:3000/login?error=google_auth_failed"));
+        assertThat(users.findByGoogleSubject(providerSubject)).isEmpty();
+    }
+    @Test void pendingActivationGetsSafeCompletionGuidance()throws Exception {
+        providerSubject="pending-subject";providerEmail="pending@example.lk";
+        User pending=users.saveAndFlush(new User("Pending",providerEmail,null,null));
+        var start=mvc.perform(get("/oauth2/authorization/google").param("challenge","v".repeat(43))).andReturn().getResponse();
+        var params=query(start.getRedirectedUrl());nonce=params.get("nonce");
+        mvc.perform(get("/login/oauth2/code/google").cookie(start.getCookie("SESSION")).param("state",params.get("state")).param("code","provider-code"))
+            .andExpect(redirectedUrl("http://localhost:3000/login?error=google_activation_required"));
+        assertThat(users.findById(pending.getId()).orElseThrow().getGoogleSubject()).isNull();
+    }
+
 }

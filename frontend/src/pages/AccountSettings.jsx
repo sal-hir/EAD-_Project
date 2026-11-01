@@ -1,10 +1,9 @@
 import React, { useEffect, useState } from 'react';
-import { api, API_BASE_URL, authError } from '../api/client';
+import { api, authError } from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import { Link, useNavigate } from 'react-router-dom';
 import { dashboardPath } from '../api/client';
 import { PageHeader, Button, ErrorState, LoadingSkeleton } from '../components/ui';
-import { PasswordInput } from '../components/PublicWebsite';
 import { StatusBadge } from '../components/StatusBadge';
 
 export const AccountSettings = () => {
@@ -12,23 +11,8 @@ export const AccountSettings = () => {
   const navigate = useNavigate();
   const [ending, setEnding] = useState(false);
   const [account, setAccount] = useState(null);
-  const [password, setPassword] = useState('');
   const [error, setError] = useState('');
-  const [busy, setBusy] = useState(false);
   useEffect(() => { api.get('/auth/account').then(r => setAccount(r.data.data)).catch(e => setError(authError(e, 'Could not load account'))); }, []);
-  const connect = async e => {
-    e.preventDefault(); if (busy) return;
-    setBusy(true); setError('');
-    try {
-      const base64url = bytes => btoa(String.fromCharCode(...bytes)).replaceAll('+', '-').replaceAll('/', '_').replaceAll('=', '');
-      const verifier = base64url(crypto.getRandomValues(new Uint8Array(32)));
-      const challenge = base64url(new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(verifier))));
-      const response = await api.post('/auth/google/link', { password, challenge });
-      setPassword('');
-      sessionStorage.setItem('swiftdrop_oauth_verifier', verifier);
-      window.location.assign(`${API_BASE_URL}${response.data.data.authorizationPath}`);
-    } catch (e) { setPassword(''); setError(authError(e, 'Google linking failed')); setBusy(false); }
-  };
   return <section className="max-w-4xl mx-auto space-y-6">
     <PageHeader title="Account settings" description="Your verified profile and sign-in security. Profile details are currently read-only." />
     {error && <ErrorState message={error} />}
@@ -39,12 +23,8 @@ export const AccountSettings = () => {
       {account && !account.googleLinked && <p className="text-sm text-slate-600">No Google account is connected.</p>}
       {account?.passwordEnabled && <Link to="/forgot-password" className="ui-button ui-button-secondary">Request password recovery</Link>}
       {account && !account.passwordEnabled && <p className="text-sm leading-6 text-slate-600">Use your connected Google account to sign in. Password recovery does not create a password for Google-only identities.</p>}
-      {account && !account.googleLinked && account.passwordEnabled && <form onSubmit={connect} className="space-y-4 border-t pt-5">
-        <h3 className="font-semibold">Connect Google</h3><p className="text-sm leading-6 text-slate-600">Connect your verified Google account with the same email address. Confirm your current password first. Your role stays the same.</p>
-        {!account.googleAvailable && <p className="text-sm text-slate-500">Google sign-in is unavailable until configured.</p>}
-        <PasswordInput label="Current password" required maxLength={72} autoComplete="current-password" disabled={busy} value={password} onChange={e => setPassword(e.target.value)} />
-        <Button type="submit" busy={busy} disabled={!account.googleAvailable}>Connect Google Account</Button>
-      </form>}
+      {account && !account.googleLinked && <p className="text-sm leading-6 text-slate-600">Sign in with Google using the same verified email to connect automatically, after completing any required account activation. Your existing identity and role are preserved.</p>}
+      {account && !account.googleAvailable && <p className="text-sm text-slate-500">Google sign-in is unavailable until configured.</p>}
       <p className="text-xs leading-6 text-slate-500">Keep recovery links private and sign out on shared devices. Password reset and sensitive administrator changes revoke existing sessions.</p>
     </div>
     <div className="ui-card flex flex-col justify-between gap-4 p-5 sm:flex-row sm:items-center"><Link className="ui-button ui-button-secondary" to={dashboardPath(user.role)}>Return to dashboard</Link><Button variant="danger" busy={ending} onClick={async () => { if (ending) return; setEnding(true); setError(''); try { await logout(); navigate('/login'); } catch { setError('Could not end your session. Please try logging out again.'); } finally { setEnding(false); } }}>Log out of account</Button></div>

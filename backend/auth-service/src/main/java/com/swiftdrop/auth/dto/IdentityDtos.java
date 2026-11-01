@@ -27,11 +27,4 @@ public final class IdentityDtos {
     }
     public record UserPage(List<Profile> users, int page, long total, int pages) {}
     public record Audit(UUID id, UUID actorId, UUID targetId, String action, String detail, Instant createdAt) {}
-    public record LinkRequest(@NotBlank @Size(max=72) String password,
-        @NotBlank @Pattern(regexp="[A-Za-z0-9_-]{43}") String challenge) {
-        @Override public String toString(){return "LinkRequest[redacted]";}
-    }
-    public record LinkResult(String authorizationPath) {
-        @Override public String toString(){return "LinkResult[redacted]";}
-    }
 }

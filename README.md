@@ -181,7 +181,6 @@ Reactivation does not revive previous sessions; sign in again.
 | POST /register, /login, /activate, /oauth/exchange; GET /providers | Public, validated |
 | POST /refresh, /logout | Refresh cookie with existing CSRF/origin checks |
 | GET /me, /account | Any authenticated active role |
-| POST /google/link | Active browser session plus password reauthentication |
 | GET /admin/me | ADMIN or DISPATCHER (read-only staff identity) |
 | GET /admin/users?search=&page=; GET /admin/users/{id} | ADMIN only; 20 users/page |
 | POST /admin/users | ADMIN only: name, email, optional phone, role, active |
@@ -214,23 +213,32 @@ Restart the backend after changing credentials. Without them the service starts
 normally, reports Google unavailable through /auth/providers and disables the UI
 button. Test credentials/consent-screen test users must be configured in Google.
 
-Google verifies state, nonce and ID tokens through Spring Security OIDC. Only a
-verified email is accepted. A returning Google subject can log in; a new subject
-creates a CUSTOMER. Password-account email collisions are rejected; matching email alone never links identities.
-Inactive accounts are rejected.
+Google verifies state, nonce, signature, issuer, audience and ID-token expiry through
+Spring Security OIDC. `email_verified=true` is required. A known Google subject
+resolves to its existing identity; it never moves to another user. A new subject with
+a matching normalized email automatically connects to an active password-enabled
+account, preserving its ID, name, password and role. If neither identity nor email
+exists, Google signup creates CUSTOMER only. Conflicting subjects or associations
+are rejected and audited without merging or overwriting accounts.
 
-For explicit linking, sign in with your password, open **Account** (`/account`), and
-select **Connect Google Account**. Re-enter the current password and choose the
-verified Google account with the same email. A five-minute, hashed, single-use intent
-is bound to the active browser session and browser challenge, then consumed when
-OIDC begins. The existing state, nonce, signature, issuer, audience and verifier
-checks remain in place. Callback linking checks the original session is still active,
-rejects a Google subject already linked elsewhere, preserves the user's role and
-records an audit event. Logout, deactivation and role changes invalidate pending
-linking. Cancellation or rejected Google proof leaves the account unchanged.
-The callback uses the existing one-use exchange and browser session flow. Subsequent
-sign-in may use either password or Google. Unlinking is intentionally unavailable;
-Google-only users retain their sole login method.
+There is no separate local email-verification flag in the current application, and
+public password registration has no additional verification step. Existing activation
+requirements still apply: credential-free administrator-provisioned accounts must
+complete their invitation before Google can connect them. Google cannot bypass
+pending activation or inactive/suspended status. Blocked pending identities return
+activation guidance without creating a duplicate. A future email-verification flow
+must add its eligibility check here before automatic linking.
+
+Automatic linking is transactional and serialized using the existing identity guard;
+unique email and Google-subject constraints remain intact. Adding the Google credential
+records GOOGLE_AUTO_LINKED and revokes old sessions, reset links and pending exchanges
+through the existing authentication version. The new Google session uses the normal
+single-use code exchange and HttpOnly refresh flow. Password login remains available.
+Already-connected Google identities are preserved; returning login does not repeat
+the linking audit or revoke sessions. The old manual link endpoint, password prompt
+and intent handling have been removed. Previously issued manual-link intents cannot
+be consumed; applied Flyway migrations and existing provider associations are unchanged.
+Google-only users retain Google as their login method; unlinking is unavailable.
 
 The browser creates a random verifier before redirecting and retains it in
 sessionStorage. The callback carries only a 60-second, single-use code in a URL
@@ -358,7 +366,7 @@ Manual acceptance: configure SMTP and confirm receipt/reset/replay rejection; su
 a CUSTOMER business, approve as ADMIN, sign in again and check the approved profile;
 repeat rejection/edit/resubmission with an existing MERCHANT. Stop Auth during a
 review to check recoverable processing, restart it and retry as ADMIN. Live Google
-link consent and live SMTP receipt remain manual checks; automated OIDC tests use
+automatic-link consent and live SMTP receipt remain manual checks; automated OIDC tests use
 the signed local provider.
 
 ## Earlier authentication verification
@@ -370,7 +378,7 @@ No live privileged test identities were created. Edge browser checks verified re
 restoration and rotation, new-tab restoration, cross-tab logout, copied JWT revocation
 and invalid-cookie clearing. BCrypt storage was checked directly in Neon; the temporary
 verification customer was deleted. Previous live Google authorization redirects contained state and nonce. Live
-Google linking for an existing password account still needs manual consent testing.
+automatic Google login for an existing password account still needs manual consent testing.
 Tests cover rotation, concurrent reuse, family revocation,
 logout, absolute expiry, inactive accounts, CSRF/origin rejection, cookie flags,
 browser restoration, API retry, logout failure and the signed Google OIDC flow.

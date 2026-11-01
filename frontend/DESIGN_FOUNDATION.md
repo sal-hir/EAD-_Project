@@ -83,7 +83,7 @@ contact include validated forms and explicit service availability messages.
 AuthPanel and PasswordInput reuse the shared foundation. Login, registration,
 recovery, activation and Google callback pages retain their existing handlers and
 contracts. Registration confirmation stays in browser state and is not submitted.
-Account settings display read-only verified details, existing Google-link actions,
+Account settings display read-only verified details, Google connection status and automatic-link guidance,
 password recovery and logout; profile editing is not implemented.
 
 The expanded browser suite checks every new page at all seven required widths,
@@ -100,3 +100,12 @@ all five role logins, restoration/logout, activation, account administration,
 fake-mail password reset and merchant approval/rejection/resubmission. Home and login
 screenshots were also inspected. No real accounts or live email sends were used.
 Personal Google consent and real SMTP delivery were not rerun in this UI phase.
+
+# Google account linking update
+
+Account settings now show provider status and automatic-link guidance only. The
+Connect Google/password reauthentication form and `/auth/google/link` action are
+removed. The login button and browser verifier/callback flow are unchanged. Google
+activation failures receive a specific safe message on the login page. Account roles,
+profile details, password recovery and logout keep their existing contracts. See the
+README for the activation eligibility policy and automatic credential/session behavior.

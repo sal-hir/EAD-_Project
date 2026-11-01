@@ -121,9 +121,11 @@ describe('authentication presentation', () => {
     wrap(<Register />); for (const [label, value] of [['Full Name', 'Customer'], ['Email address', user.email], ['Password', 'Fixture@123'], ['Confirm password', 'Fixture@123']]) fireEvent.change(screen.getByLabelText(label), { target: { value } });
     fireEvent.submit(document.querySelector('form')); await waitFor(() => expect(register).toHaveBeenCalledWith({ name: 'Customer', email: user.email, phone: '', password: 'Fixture@123' }));
   });
-  it('shows verified account details and existing Google link/recovery actions', async () => {
+  it('shows verified account details and automatic Google linking guidance', async () => {
     signedIn = true; user.role = 'MERCHANT'; wrap(<AccountSettings />);
-    expect(await screen.findByRole('button', { name: 'Connect Google Account' })).toBeTruthy(); expect(screen.getByText(user.name)).toBeTruthy();
+    expect(await screen.findByText(/Sign in with Google using the same verified email/)).toBeTruthy(); expect(screen.getByText(user.name)).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Connect Google Account' })).toBeNull();
+    expect(screen.queryByLabelText('Current password')).toBeNull();
     expect(screen.getByRole('link', { name: 'Return to dashboard' }).getAttribute('href')).toBe('/merchant'); expect(screen.getByRole('link', { name: 'Request password recovery' })).toBeTruthy();
   });
   it('handles failed account logout without claiming the session ended', async () => {
@@ -138,4 +140,11 @@ describe('authentication presentation', () => {
     expect(screen.queryByRole('button', { name: 'Connect Google Account' })).toBeNull();
     expect(screen.getByText(/Password recovery does not create a password/)).toBeTruthy();
   });
+  it('explains required activation after a blocked Google login without offering manual linking', () => {
+    window.history.replaceState(null, '', '/login?error=google_activation_required'); wrap(<Login />);
+    expect(screen.getByRole('alert').textContent).toContain('Complete the activation or verification required');
+    expect(screen.queryByRole('button', { name: 'Connect Google Account' })).toBeNull();
+    window.history.replaceState(null, '', '/');
+  });
+
 });

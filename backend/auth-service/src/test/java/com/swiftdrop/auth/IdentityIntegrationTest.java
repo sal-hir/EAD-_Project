@@ -171,7 +171,6 @@ class IdentityIntegrationTest {
         assertThat(context.getBeansOfType(com.swiftdrop.auth.config.AdminBootstrap.class)).isEmpty();
         assertThat(new PasswordRequest(PASSWORD).toString()).doesNotContain(PASSWORD);
         assertThat(new ActivationRequest("sensitive-code",PASSWORD).toString()).doesNotContain(PASSWORD,"sensitive-code");
-        assertThat(new LinkRequest(PASSWORD,"challenge").toString()).doesNotContain(PASSWORD);
         var result=jwt.issue(admin);
         assertThat(com.swiftdrop.auth.dto.AuthDtos.ApiResponse.ok(result).toString()).doesNotContain(result.token());
     }
