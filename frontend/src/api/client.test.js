@@ -15,6 +15,17 @@ beforeEach(async () => {
 });
 afterEach(() => vi.restoreAllMocks());
 
+it('uses the same in-memory access token for Merchant Service without service secrets', async () => {
+  client.setAccessToken('shared-memory-access');
+  client.merchantApi.defaults.adapter = async config => {
+    expect(config.headers.Authorization).toBe('Bearer shared-memory-access');
+    expect(config.headers['X-SwiftDrop-Service-Key']).toBeUndefined();
+    expect(config.withCredentials).not.toBe(true);
+    return response(config);
+  };
+  await client.merchantApi.get('/merchants/applications/me');
+});
+
 it('uses credentials and the CSRF header only on the dedicated session client', async () => {
   sessionApi.defaults.adapter = async config => {
     expect(config.withCredentials).toBe(true);

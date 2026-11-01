@@ -26,7 +26,8 @@ public class JwtService {
         Instant now = Instant.now();
         JwtClaimsSet.Builder builder = JwtClaimsSet.builder().issuer(issuer).subject(user.getId().toString())
             .audience(List.of("swiftdrop-api")).issuedAt(now).expiresAt(now.plusSeconds(ttl))
-            .id(java.util.UUID.randomUUID().toString());
+            .id(java.util.UUID.randomUUID().toString()).claim("ver", user.getAuthVersion())
+            .claim("role", user.getRole().name());
         if (sessionId != null) builder.claim("sid", sessionId.toString());
         JwtClaimsSet claims = builder.build();
         String token = encoder.encode(JwtEncoderParameters.from(JwsHeader.with(MacAlgorithm.HS256).build(), claims)).getTokenValue();

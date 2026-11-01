@@ -19,6 +19,8 @@ const sessionApi = axios.create({
   withCredentials: true,
   headers: { 'Content-Type': 'application/json', 'X-SwiftDrop-CSRF': '1' },
 });
+export const MERCHANT_API_BASE_URL = (import.meta.env.VITE_MERCHANT_API_URL || 'http://localhost:4001').replace(/\/$/, '');
+export const merchantApi = axios.create({ baseURL: `${MERCHANT_API_BASE_URL}/api/v1`, headers: { 'Content-Type': 'application/json' } });
 // Serialize cookie mutations, including across tabs when Web Locks is available.
 export const sessionRequest = (endpoint, payload = {}) => {
   const request = () => sessionApi.post(endpoint, payload);
@@ -35,12 +37,13 @@ export const refreshSession = () => {
   }
   return refreshPromise;
 };
-api.interceptors.request.use((config) => {
+const installAuthentication = instance => {
+instance.interceptors.request.use((config) => {
   if (accessToken) config.headers.Authorization = `Bearer ${accessToken}`;
   else delete config.headers.Authorization;
   return config;
 });
-api.interceptors.response.use(
+instance.interceptors.response.use(
   (response) => response,
   async (error) => {
     const config = error.config;
@@ -48,7 +51,7 @@ api.interceptors.response.use(
       if (sessionRefresher && !config.skipSessionRefresh && !config._sessionRetried) {
         config._sessionRetried = true;
         try {
-          if (await sessionRefresher()) return api(config);
+          if (await sessionRefresher()) return instance(config);
         } catch { /* Clear local identity below if restoration fails. */ }
       }
       if (config.headers.Authorization === `Bearer ${accessToken}`) {
@@ -59,6 +62,9 @@ api.interceptors.response.use(
     return Promise.reject(error);
   }
 );
+};
+installAuthentication(api);
+installAuthentication(merchantApi);
 export const authError = (error, fallback) => {
   const body = error.response?.data;
   const fields = Object.entries(body?.errors || {}).map(([field, message]) => `${field}: ${message}`);

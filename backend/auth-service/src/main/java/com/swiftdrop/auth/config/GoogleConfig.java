@@ -3,6 +3,7 @@ package com.swiftdrop.auth.config;
 import com.swiftdrop.auth.service.OAuthService;
 import jakarta.servlet.http.*;
 import java.io.IOException;
+import java.util.UUID;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.*;
@@ -44,7 +45,17 @@ public class GoogleConfig {
                 if (!"google".equals(id) || registrations.findByRegistrationId("google") == null || challenge == null || !challenge.matches("[A-Za-z0-9_-]{43}")) {
                     throw new OAuth2AuthenticationException(new OAuth2Error("invalid_request"));
                 }
-                request.getSession().setAttribute("browser_challenge", challenge);
+                HttpSession session=request.getSession();
+                session.removeAttribute("google_link_user");session.removeAttribute("google_link_session");
+                String link=request.getParameter("link");
+                if(link!=null) {
+                    com.swiftdrop.auth.service.IdentityService.Action action;
+                    try { action=oauth.beginLink(link,challenge); }
+                    catch(com.swiftdrop.auth.exception.ApiException ex) { throw new OAuth2AuthenticationException(new OAuth2Error("invalid_request")); }
+                    session.setAttribute("google_link_user",action.userId());
+                    session.setAttribute("google_link_session",action.sessionId());
+                }
+                session.setAttribute("browser_challenge", challenge);
                 return resolver.resolve(request, id);
             }
             @Override public org.springframework.security.oauth2.core.endpoint.OAuth2AuthorizationRequest resolve(HttpServletRequest request) {
@@ -64,7 +75,10 @@ public class GoogleConfig {
                         OidcUser principal = (OidcUser) authentication.getPrincipal();
                         HttpSession session = request.getSession(false);
                         String challenge = session == null ? null : (String) session.getAttribute("browser_challenge");
-                        var user = oauth.googleUser(principal.getSubject(), principal.getEmail(), principal.getEmailVerified(), principal.getFullName());
+                        UUID linkUser=session==null?null:(UUID)session.getAttribute("google_link_user");
+                        var user = linkUser==null
+                            ? oauth.googleUser(principal.getSubject(), principal.getEmail(), principal.getEmailVerified(), principal.getFullName())
+                            : oauth.completeLink(linkUser,(UUID)session.getAttribute("google_link_session"),principal.getSubject(),principal.getEmail(),principal.getEmailVerified());
                         String code = oauth.createCode(user, challenge);
                         invalidate(request);
                         response.setHeader("Cache-Control", "no-store");

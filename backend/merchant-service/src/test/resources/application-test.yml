@@ -1,0 +1,14 @@
+spring:
+  datasource:
+    url: jdbc:h2:mem:merchant;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DB_CLOSE_DELAY=-1;INIT=CREATE SCHEMA IF NOT EXISTS merchant
+    username: sa
+    password: ''
+    driver-class-name: org.h2.Driver
+  flyway:
+    url: ${spring.datasource.url}
+app:
+  auth-url: http://localhost:4000
+  service-token: test-only-merchant-service-key-never-deploy
+logging:
+  level:
+    root: WARN

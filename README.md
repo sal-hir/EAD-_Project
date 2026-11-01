@@ -1,10 +1,11 @@
-# SwiftDrop — initial authentication milestone
+# SwiftDrop — authentication and merchant onboarding
 
 The existing React 18/Vite/Tailwind interface now uses a Java 21 / Spring Boot
 3.5.16 Auth Service. Customer registration, password login, short-lived JWTs,
 current-user verification and role authorization are implemented. Google OIDC
-is optional. Parcel, merchant, courier and notification business operations are
-not implemented in this slice; their UI routes show an explicit coming-soon state.
+is optional. Password recovery and independent Merchant Service application/review
+workflows are implemented. Parcel, courier, delivery orders and notification events
+remain future work; their UI routes retain explicit coming-soon states.
 Original dashboard components are preserved for the next migration.
 
 ## Run with Docker Compose (recommended)
@@ -109,7 +110,8 @@ only SHA-256 hashes. Reusing a consumed token revokes its entire session family.
 Logout revokes that family and clears the cookie. Browser JWTs include a session
 identifier, checked on every protected request, so logout/replay also invalidates
 copied access tokens immediately. Bare API login without the browser session
-header retains the existing expiry-only JWT behavior.
+header retains expiry-based logout behavior; sensitive identity changes also
+invalidate these tokens through the authentication version.
 
 The React session client sends credentials and `X-SwiftDrop-CSRF: 1` on login,
 OAuth exchange, `POST /api/v1/auth/refresh` and `POST /api/v1/auth/logout`.
@@ -128,10 +130,71 @@ api.example.com), use exact FRONTEND_URL, and register the HTTPS Google callback
 Do not put Google secrets or JWT_SECRET in frontend VITE variables. Access and
 refresh tokens are never stored in localStorage/sessionStorage or callback URLs.
 
-There is no public staff provisioning endpoint. For local role testing, register
-an account and have the database owner update only that account's auth.users.role
-to an allowed role. Production needs an audited administrator provisioning flow.
-Merchant onboarding/approval belongs to the future Merchant Service and is deferred.
+## Administrator bootstrap and identity management
+
+All five roles share `/api/v1/auth/login`, `/me`, refresh and logout. Public
+registration creates CUSTOMER only. MERCHANT, COURIER and DISPATCHER identities
+are provisioned by ADMIN. A merchant identity does not represent business approval;
+merchant business approval is separately enforced by Merchant Service.
+
+First administrator setup is an opt-in local console process, disabled by default.
+Stop the running Auth Service first, package it, then run from its directory:
+
+```powershell
+cd backend/auth-service
+mvn -DskipTests package
+java -jar target/auth-service-0.1.0.jar --app.bootstrap.enabled=true --server.address=127.0.0.1
+```
+
+Enter name, email and a private password at the terminal prompts. Password input is
+hidden; no default password or password argument exists. Use 8-72 printable ASCII
+characters. The service stops after setup; restart normally with
+`mvn spring-boot:run`. A real interactive console is required (not redirected stdin).
+A database guard serializes bootstrap; it cannot overwrite/promote an existing
+identity, run when any ADMIN exists, or run again after successful bootstrap.
+No administrator REST bootstrap endpoint exists. Do not enable the flag for normal
+startup or deployment. Existing administrators should use their existing login.
+
+ADMIN opens **User accounts** (`/admin/users`) to provision identities, search users,
+change permitted roles/status, inspect audit events and reissue activation links.
+The API returns a single-use 30-minute activation link to the authenticated ADMIN,
+with `Cache-Control: no-store`. Share it privately with the intended recipient;
+it is shown transiently and never emailed or logged by this implementation.
+The recipient opens `/activate#code=...`, chooses their own password, then signs in.
+Only the code hash is stored. Reissuing invalidates the previous link. Inactive
+accounts cannot activate; activate the identity and issue a new link first.
+Existing credentialed accounts cannot use this mechanism to reset a password.
+Self-service password recovery is a separate flow described below; activation links
+remain restricted to credential-free identities.
+
+Management accepts only explicit DTO fields. Administrators cannot modify themselves,
+create additional ADMIN identities, or change any ADMIN identity through these APIs.
+This protects the final administrator. Permitted role assignments are MERCHANT,
+COURIER and DISPATCHER. Sensitive changes record actor, target, action and time in
+`auth.identity_audit`. Role/status changes revoke every refresh family, pending OAuth
+exchange/identity action and increment an authentication version. Earlier access
+JWTs are rejected, including legacy tokens without a browser session identifier.
+Reactivation does not revive previous sessions; sign in again.
+
+| Authentication endpoint | Permission |
+|---|---|
+| POST /register, /login, /activate, /oauth/exchange; GET /providers | Public, validated |
+| POST /refresh, /logout | Refresh cookie with existing CSRF/origin checks |
+| GET /me, /account | Any authenticated active role |
+| POST /google/link | Active browser session plus password reauthentication |
+| GET /admin/me | ADMIN or DISPATCHER (read-only staff identity) |
+| GET /admin/users?search=&page=; GET /admin/users/{id} | ADMIN only; 20 users/page |
+| POST /admin/users | ADMIN only: name, email, optional phone, role, active |
+| POST /admin/users/{id}/role | ADMIN only: role |
+| POST /admin/users/{id}/status | ADMIN only: active |
+| POST /admin/users/{id}/activation | ADMIN only; credential-free identities |
+| GET /admin/users/{id}/audit | ADMIN only; latest 100 events |
+
+Role destinations: CUSTOMER `/customer`, MERCHANT `/merchant`, COURIER `/courier`,
+DISPATCHER and ADMIN `/admin`. `/admin/users` is ADMIN-only in React and Spring.
+Business dashboards retain their existing Coming Soon state; original dashboard
+components remain available on disk. The Auth Service owns all credentials and
+identity; future business services must verify tokens and enforce their own permissions.
 
 ## Google setup and manual verification
 
@@ -153,9 +216,21 @@ button. Test credentials/consent-screen test users must be configured in Google.
 
 Google verifies state, nonce and ID tokens through Spring Security OIDC. Only a
 verified email is accepted. A returning Google subject can log in; a new subject
-creates a CUSTOMER. Password-account email collisions are rejected to prevent
-unsafe automatic linking. Use that account's password; explicit authenticated
-Google linking is deferred. Inactive accounts are rejected.
+creates a CUSTOMER. Password-account email collisions are rejected; matching email alone never links identities.
+Inactive accounts are rejected.
+
+For explicit linking, sign in with your password, open **Account** (`/account`), and
+select **Connect Google Account**. Re-enter the current password and choose the
+verified Google account with the same email. A five-minute, hashed, single-use intent
+is bound to the active browser session and browser challenge, then consumed when
+OIDC begins. The existing state, nonce, signature, issuer, audience and verifier
+checks remain in place. Callback linking checks the original session is still active,
+rejects a Google subject already linked elsewhere, preserves the user's role and
+records an audit event. Logout, deactivation and role changes invalidate pending
+linking. Cancellation or rejected Google proof leaves the account unchanged.
+The callback uses the existing one-use exchange and browser session flow. Subsequent
+sign-in may use either password or Google. Unlinking is intentionally unavailable;
+Google-only users retain their sole login method.
 
 The browser creates a random verifier before redirecting and retains it in
 sessionStorage. The callback carries only a 60-second, single-use code in a URL
@@ -169,23 +244,151 @@ user, confirm CUSTOMER navigation, log out, repeat login, and verify a repeated
 exchange is rejected. Check cancellation and an inactive Google account as well.
 Automated tests complete the signed OIDC protocol against a local provider,
 including nonce rejection, new/returning customers, one-use exchange and refresh.
-A real Google account must still complete the consent screen manually; automated
-tests do not sign in to your personal Google account. If Google rejects the request,
+The project owner has manually verified new-account Google login. Automated tests
+use a signed local OIDC provider; they do not sign in to personal Google accounts. If Google rejects the request,
 check client type, exact redirect URI, test-user membership and saved credentials.
 
-## Verification
+## Password recovery and merchant onboarding
 
-The authentication suite passes 38 backend tests and 17 frontend tests. The React
-production build passes. Live Neon readiness and the refresh-session Flyway migration
-also pass. Edge browser checks verified registration/login, HttpOnly cookies, refresh
+Run each component in a separate terminal, without Docker. Both Java services
+automatically import their own ignored `.env` when launched from their directory:
+
+```powershell
+cd backend/auth-service
+mvn spring-boot:run
+```
+
+```powershell
+cd backend/merchant-service
+mvn spring-boot:run
+```
+
+```powershell
+cd frontend
+npm ci
+npm run dev
+```
+
+Auth uses port 4000, Merchant 4001 and React 3000. React's optional
+`VITE_MERCHANT_API_URL` defaults to `http://localhost:4001` (the client adds the API path).
+Keep `FRONTEND_URL` exact for CORS. Existing Docker Compose runs the earlier Auth/UI
+stack; it does not launch Merchant. Merchant has its own Dockerfile, but deployment
+wiring and Kubernetes changes are outside this milestone.
+
+Merchant's private `.env` uses `MERCHANT_DB_URL`, `MERCHANT_MIGRATION_DB_URL`,
+`MERCHANT_DB_USER`, `MERCHANT_DB_PASSWORD`, `AUTH_SERVICE_URL` and
+`MERCHANT_SERVICE_TOKEN`; see its `.env.example`. Application traffic may use Neon's
+pooled JDBC endpoint and Flyway its direct endpoint, with TLS. Merchant owns only
+the `merchant` schema, not Auth tables. Use schema-scoped database users in deployment.
+A matching random service token of at least 32 characters belongs in both backend
+`.env` files. The local token and Merchant database settings have been configured;
+existing Auth database, JWT and Google settings are preserved. Never put this key
+in React or a `VITE_` variable. Remote Auth communication requires HTTPS; loopback
+HTTP is permitted for development.
+
+**Password recovery:** `/forgot-password` calls `POST /api/v1/auth/password/forgot`.
+The response is generic for known, unknown, inactive and Google-only identities.
+Password-enabled accounts in all five roles receive a 20-minute single-use link
+when SMTP is configured. Google-only accounts must continue with Google. The reset
+page `/reset-password` clears its token fragment, validates matching passwords and
+calls `POST /api/v1/auth/password/reset`. Successful reset revokes all existing
+sessions/JWTs and outstanding reset links, records an audit event and requires login.
+Only token hashes are stored. Shared rate limits allow three requests per email and
+20 per source IP per 15 minutes; configure trusted reverse-proxy handling before
+deployment because the service uses the direct request peer address.
+
+Provide these privately in `backend/auth-service/.env` to enable real mail:
+`MAIL_HOST`, `MAIL_PORT`, `MAIL_USERNAME`, `MAIL_PASSWORD`, `MAIL_FROM`,
+`MAIL_SMTP_AUTH`, `MAIL_SMTP_STARTTLS`. Defaults are port 587 with authentication and
+STARTTLS enabled. A local SMTP sandbox can explicitly disable both options. OAuth
+client credentials are not SMTP credentials. Mail delivery is asynchronous with a
+bounded in-process queue; failed delivery removes that link and requires a new
+request. There is no durable mail queue or automatic mail retry. SMTP is currently
+unconfigured; fake-mail tests passed, but live sent/received email is unverified.
+
+**Merchant workflow:** CUSTOMER and pre-provisioned MERCHANT identities can open
+`/merchant/apply`, submit one business application, and view
+`/merchant/application-status`. Submission never grants a role. Applicants may edit
+pending/rejected applications; rejected applications require explicit resubmission.
+ADMIN opens `/admin/merchants` to search/filter/page through applications, inspect
+details/history, and confirm approval or reject with a reason. DISPATCHER cannot
+review. Approved merchants see their business profile at `/merchant`; delivery-order
+features remain Coming Soon. MERCHANT role by itself grants no approved-business access.
+
+Merchant validates each bearer through Auth `/api/v1/auth/me`. Approval first persists
+`APPROVING`, then invokes Auth's narrow
+`POST /api/v1/auth/internal/merchant-approvals/{applicationId}` using both the ADMIN
+bearer and backend service key. The operation accepts only the target user ID,
+is idempotent by application ID, audits grants and revokes CUSTOMER sessions when
+changing the role. The applicant signs in again. Existing MERCHANT identities are
+reused without duplicate accounts. Only successful synchronization becomes APPROVED.
+If Auth fails or a response is lost, status remains APPROVING; ADMIN retries approval
+with fresh authorization. No bearer is stored for background retry, and a later
+manual role demotion is not silently reversed by replaying an old grant.
+
+Additive migrations are Auth V5 (reset hashes/rate limits), Auth V6 (idempotent role
+grants), and Merchant V1 (applications/review audit). Earlier migrations are preserved.
+New tests use isolated H2 fixtures and fake SMTP, never live privileged Neon users.
+
+```powershell
+mvn -f backend/auth-service/pom.xml test
+mvn -f backend/merchant-service/pom.xml test
+cd frontend
+npm test
+npm run build
+```
+
+Current suites pass 86 Auth tests (two browser suites opt in separately), 18 Merchant
+tests and 42 frontend tests. Both executable packages and the React production build
+pass. The new Edge suite passed seven scenario groups against real HTTP Auth and
+Merchant servers with separate isolated H2 databases, including fake-mail password
+reset, customer approval/role revocation, pre-provisioned merchant restrictions and
+rejection/correction/resubmission. To repeat, package Merchant, generate its test
+runtime classpath with Maven `dependency:build-classpath -Dmdep.includeScope=test
+-Dmdep.outputFile=target/test-runtime-classpath.txt`, then run Auth tests with
+`-Donboarding.browser.tests=true -Dtest=OnboardingBrowserTest`. Edge and the same
+Playwright installation described below are required.
+
+Live Neon readiness passed for both services. Read-only checks confirmed successful
+Auth V5/V6 and Merchant V1 migrations and the new tables. No live test identities
+were created. Flyway reports that the current PostgreSQL 18 server is newer than
+its tested PostgreSQL support range; migrations and Hibernate validation succeeded.
+
+Manual acceptance: configure SMTP and confirm receipt/reset/replay rejection; submit
+a CUSTOMER business, approve as ADMIN, sign in again and check the approved profile;
+repeat rejection/edit/resubmission with an existing MERCHANT. Stop Auth during a
+review to check recoverable processing, restart it and retry as ADMIN. Live Google
+link consent and live SMTP receipt remain manual checks; automated OIDC tests use
+the signed local provider.
+
+## Earlier authentication verification
+
+The authentication suite passes 65 backend tests and 30 frontend tests. The React
+production build and executable Auth Service packaging pass. Live Neon readiness,
+Flyway V4 validation and read-only checks of the new identity tables also pass.
+No live privileged test identities were created. Edge browser checks verified registration/login, HttpOnly cookies, refresh
 restoration and rotation, new-tab restoration, cross-tab logout, copied JWT revocation
 and invalid-cookie clearing. BCrypt storage was checked directly in Neon; the temporary
-verification customer was deleted. Live Google authorization redirects contain state
-and nonce. The headless check timed out waiting for a Google account form; actual
-Google account sign-in and consent remain manual and are not claimed as verified.
+verification customer was deleted. Previous live Google authorization redirects contained state and nonce. Live
+Google linking for an existing password account still needs manual consent testing.
 Tests cover rotation, concurrent reuse, family revocation,
 logout, absolute expiry, inactive accounts, CSRF/origin rejection, cookie flags,
 browser restoration, API retry, logout failure and the signed Google OIDC flow.
+
+A separate optional Edge browser suite passed eight scenario groups covering all
+five roles, activation/provisioning through the UI, role-change revocation,
+deactivation and audit display. It runs a real Spring HTTP server with isolated H2
+fixtures and redirects browser API calls to that test server; it never creates
+privileged accounts in Neon. Existing Neon users are not test fixtures.
+
+To repeat it, install Microsoft Edge and have a local Playwright module available.
+Set SWIFTDROP_PLAYWRIGHT_PATH to that module directory if needed; the existing
+ignored backend/auth-service/target/browser-verification/node_modules/playwright
+is detected automatically. Then run:
+
+```powershell
+mvn -f backend/auth-service/pom.xml test '-Dauth.browser.tests=true' '-Dtest=RoleBrowserTest'
+```
 
 ```powershell
 mvn -f backend/auth-service/pom.xml test
@@ -206,8 +409,7 @@ registry image, PostgreSQL, Secrets and your existing HTTPS Ingress. No real sec
 values are included. Previous documentation is historical:
 [original README](docs/legacy-readme.md), [original design](DESIGN_DOCUMENTATION.md).
 
-Next milestone: merchant application/approval, audited staff provisioning, Parcel
-and Courier Services, asymmetric token verification across services, RabbitMQ
+Next milestone: Parcel and Courier Services, asymmetric token verification across services, RabbitMQ
 notifications/webhooks and real-time tracking. Existing Node notification code is
 preserved under the optional legacy-notifications Compose profile, but Auth
 publishes no events. Configure its own mail/RabbitMQ settings before enabling it.

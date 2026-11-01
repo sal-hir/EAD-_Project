@@ -1,0 +1,46 @@
+server:
+  port: ${MERCHANT_PORT:4001}
+spring:
+  application:
+    name: merchant-service
+  config:
+    import: "optional:file:./.env[.properties]"
+  datasource:
+    url: ${MERCHANT_DB_URL}
+    username: ${MERCHANT_DB_USER}
+    password: ${MERCHANT_DB_PASSWORD}
+    hikari:
+      maximum-pool-size: ${MERCHANT_DB_POOL_SIZE:3}
+      minimum-idle: 0
+  flyway:
+    url: ${MERCHANT_MIGRATION_DB_URL:${spring.datasource.url}}
+    user: ${spring.datasource.username}
+    password: ${spring.datasource.password}
+    schemas: merchant
+    default-schema: merchant
+    create-schemas: true
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate.default_schema: merchant
+  jackson:
+    deserialization:
+      fail-on-unknown-properties: true
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+  endpoint:
+    health:
+      probes:
+        enabled: true
+      group:
+        readiness:
+          include: readinessState,db
+app:
+  frontend-url: ${FRONTEND_URL:http://localhost:3000}
+  auth-url: ${AUTH_SERVICE_URL:http://localhost:4000}
+  service-token: ${MERCHANT_SERVICE_TOKEN:}

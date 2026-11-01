@@ -1,4 +1,4 @@
-# Initial authentication slice
+# Authentication and merchant onboarding
 
 ```mermaid
 flowchart LR
@@ -8,9 +8,14 @@ flowchart LR
     Auth -->|One-time code fragment| Browser
     Browser -->|Code + verifier exchange| Auth
     Auth -->|JPA + Flyway| DB[(Auth PostgreSQL schema)]
+    Browser -->|Bearer token /api/v1/merchants| Merchant[Merchant Service]
+    Merchant -->|Validate bearer using /auth/me| Auth
+    Merchant -->|ADMIN bearer + service credential: idempotent role grant| Auth
+    Merchant -->|JPA + Flyway| MerchantDB[(Merchant PostgreSQL schema)]
+    Auth -->|Password recovery mail| SMTP[Configured SMTP provider]
     Auth -. planned events .-> MQ[RabbitMQ]
     MQ -. future .-> Notification[Notification Service]
-    Browser -. future .-> Business[Parcel / Merchant / Courier Services]
+    Browser -. future .-> Business[Parcel / Courier Services]
 ```
 
 Auth uses controller → service → repository, safe DTOs and Flyway migrations.
@@ -25,7 +30,8 @@ refresh cookie restores the session after reload. Tokens rotate under a family r
 lock; only SHA-256 hashes are stored in auth.refresh_tokens. Session families have
 an absolute seven-day expiry in auth.refresh_sessions. Replay revokes the family;
 logout also revokes it. Browser JWT sid claims are checked against the active family
-on every protected request. Old bare API JWTs without sid keep expiry-only behavior.
+on every protected request. Bare API JWTs without sid cannot be individually logged out; identity changes
+invalidate them through the authentication version.
 Cookie mutations require a custom CSRF header and exact allowed Origin. Credentialed
 CORS allows only the configured frontend. Production requires COOKIE_SECURE=true
 and HTTPS with frontend/API on the same site. Refresh/logout do not use the short
@@ -39,9 +45,33 @@ code is randomly generated, hashed at rest, bound to a SHA-256 browser verifier,
 and consumed under a database row lock. No reusable token appears in a URL.
 Only verified Google emails are accepted. A returning linked Google subject can
 sign in. New identities become CUSTOMER. A password account with the same email
-is rejected rather than silently linked; sign in with its password. Explicit
-authenticated account linking is a later feature.
+is rejected rather than silently linked; sign in with its password. Explicit linking now requires password reauthentication and a one-use intent bound to
+the current browser session. The verified Google email must match the signed-in
+identity; Google subjects remain unique and linking preserves roles. See the README
+for the bootstrap, activation and ADMIN-only identity-management policy. Sensitive
+identity changes increment the user authentication version and revoke sessions.
 
-The initial UI keeps original business components on disk while routing their
-screens to an explicit unavailable state. No business API requests or Socket.io
-connections are made by the milestone UI.
+Password recovery returns a generic response before asynchronous eligibility/mail
+work. Shared database rate limits bound email/IP requests. Random reset tokens have
+a 20-minute lifetime and only SHA-256 hashes are stored. Reset locks the identity,
+consumes all outstanding reset tokens, changes BCrypt credentials and revokes every
+session through the existing authentication version. SMTP failures remove the
+undelivered token and never disclose account existence to the caller.
+
+Merchant applications move PENDING -> APPROVING -> APPROVED, or PENDING -> REJECTED.
+Rejected applicants may edit and explicitly resubmit. Ownership comes from Auth's
+verified identity; DTOs cannot assign user IDs, roles or statuses. Row locks and
+versions serialize conflicting reviews. Merchant commits APPROVING before calling
+Auth; Auth's application-ID grant is idempotent. Failed synchronization stays
+APPROVING and ADMIN can retry with fresh authorization. No bearer is persisted for
+background retries. Only successful role synchronization permits APPROVED. Business
+access requires both MERCHANT role and an approved owned profile. A pre-provisioned
+MERCHANT receives no automatic business approval. Each service owns its schema;
+there is no distributed database transaction or direct cross-schema query.
+
+Merchant's Auth client accepts HTTP only on loopback for local development and
+requires HTTPS elsewhere. Production must supply matching private service keys,
+SMTP configuration and separate schema-scoped database identities. Existing Compose
+and Kubernetes deployment wiring is unchanged. Parcel, orders, API keys, RabbitMQ
+events, webhooks and tracking remain future work; original dashboard components
+remain on disk and unavailable operations retain Coming Soon states.

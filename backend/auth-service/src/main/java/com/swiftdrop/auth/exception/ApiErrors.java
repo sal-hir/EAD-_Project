@@ -37,6 +37,9 @@ public class ApiErrors {
         return ResponseEntity.badRequest().body(body(400, "Invalid request", fields));
     }
     @ExceptionHandler(HttpMessageNotReadableException.class) ResponseEntity<ErrorBody> malformed() { return response(HttpStatus.BAD_REQUEST, "Invalid request body"); }
+    @ExceptionHandler({org.springframework.web.method.annotation.MethodArgumentTypeMismatchException.class,
+        org.springframework.web.bind.MissingServletRequestParameterException.class})
+    ResponseEntity<ErrorBody> parameters() { return response(HttpStatus.BAD_REQUEST,"Invalid request parameter"); }
     @ExceptionHandler(AuthenticationException.class) ResponseEntity<ErrorBody> credentials() { return response(HttpStatus.UNAUTHORIZED, "Invalid credentials or account unavailable"); }
     @ExceptionHandler(AccessDeniedException.class) ResponseEntity<ErrorBody> forbidden() { return response(HttpStatus.FORBIDDEN, "Access denied"); }
     @ExceptionHandler(DataIntegrityViolationException.class) ResponseEntity<ErrorBody> conflict() { return response(HttpStatus.CONFLICT, "Account already exists or identity is unavailable"); }

@@ -8,6 +8,10 @@ import com.nimbusds.jose.jwk.gen.RSAKeyGenerator;
 import com.nimbusds.jwt.*;
 import com.sun.net.httpserver.HttpServer;
 import com.swiftdrop.auth.repository.UserRepository;
+import com.swiftdrop.auth.entity.User;
+import com.swiftdrop.auth.entity.Role;
+import com.swiftdrop.auth.service.BrowserSessionService;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import com.swiftdrop.auth.security.SessionCookies;
 import com.swiftdrop.auth.service.OAuthService;
 import java.net.*;
@@ -37,8 +41,12 @@ class GoogleOidcIntegrationTest {
     static RSAKey key;
     static String issuer, nonce;
     static boolean wrongNonce;
+    static String providerSubject="mock-google-subject",providerEmail="oidc-customer@example.lk";
     @Autowired MockMvc mvc;
     @Autowired UserRepository users;
+    @Autowired PasswordEncoder passwords;
+    @Autowired BrowserSessionService sessions;
+    @BeforeEach void resetProvider(){wrongNonce=false;providerSubject="mock-google-subject";providerEmail="oidc-customer@example.lk";}
 
     @TestConfiguration
     static class Provider {
@@ -56,10 +64,10 @@ class GoogleOidcIntegrationTest {
                     String request = new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
                     if (!request.contains("code=provider-code")) throw new IllegalArgumentException("Unexpected code");
                     var claims = new JWTClaimsSet.Builder().issuer(issuer).audience("test-client")
-                        .subject("mock-google-subject").issueTime(Date.from(Instant.now()))
+                        .subject(providerSubject).issueTime(Date.from(Instant.now()))
                         .expirationTime(Date.from(Instant.now().plusSeconds(300)))
                         .claim("nonce", wrongNonce ? "invalid-nonce" : nonce)
-                        .claim("email", "oidc-customer@example.lk").claim("email_verified", true)
+                        .claim("email", providerEmail).claim("email_verified", true)
                         .claim("name", "Google customer").build();
                     var jwt = new SignedJWT(new JWSHeader.Builder(JWSAlgorithm.RS256).keyID(key.getKeyID()).build(), claims);
                     jwt.sign(new RSASSASigner(key));
@@ -124,5 +132,26 @@ class GoogleOidcIntegrationTest {
         mvc.perform(get("/login/oauth2/code/google").cookie(start.getCookie("SESSION"))
             .param("state",params.get("state")).param("code","provider-code"))
             .andExpect(redirectedUrl("http://localhost:3000/login?error=google_auth_failed"));
+    }
+    @Test void explicitLinkTraversesSignedOidcCallbackAndPreservesStaffRole() throws Exception {
+        providerSubject="linked-courier-subject";providerEmail="linked-courier@example.lk";
+        User user=new User("Linked courier",providerEmail,passwords.encode("LinkTest@123!"),null);user.setRole(Role.COURIER);users.saveAndFlush(user);
+        var browser=sessions.start(user.getId(),null);String verifier="l".repeat(43);
+        var prepared=mvc.perform(post("/api/v1/auth/google/link").header("Authorization","Bearer "+browser.login().token())
+            .contentType(MediaType.APPLICATION_JSON).content(JSON.writeValueAsBytes(Map.of("password","LinkTest@123!","challenge",OAuthService.challenge(verifier)))))
+            .andExpect(status().isOk()).andReturn().getResponse();
+        String path=JSON.readTree(prepared.getContentAsString()).path("data").path("authorizationPath").asText();
+        var start=mvc.perform(get(path)).andExpect(status().is3xxRedirection()).andReturn().getResponse();
+        var params=query(start.getRedirectedUrl());nonce=params.get("nonce");
+        var callback=mvc.perform(get("/login/oauth2/code/google").cookie(start.getCookie("SESSION"))
+            .param("state",params.get("state")).param("code","provider-code"))
+            .andExpect(status().is3xxRedirection()).andReturn().getResponse();
+        assertThat(callback.getRedirectedUrl()).startsWith("http://localhost:3000/auth/callback#code=");
+        String code=URI.create(callback.getRedirectedUrl()).getFragment().substring(5);
+        mvc.perform(post("/api/v1/auth/oauth/exchange").header(SessionCookies.CSRF_HEADER,"1")
+            .contentType(MediaType.APPLICATION_JSON).content(JSON.writeValueAsBytes(Map.of("code",code,"verifier",verifier))))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.data.user.id").value(user.getId().toString()))
+            .andExpect(jsonPath("$.data.user.role").value("COURIER"));
+        assertThat(users.findById(user.getId()).orElseThrow().getGoogleSubject()).isEqualTo(providerSubject);
     }
 }

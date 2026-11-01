@@ -64,6 +64,11 @@ export const Navbar = () => {
           <div className="flex items-center space-x-4">
             {isAuthenticated ? (
               <>
+                <Link to="/account" className="text-sm font-medium text-slate-700">Account</Link>
+                {user.role === 'CUSTOMER' && <Link to="/merchant/apply" className="text-sm text-blue-700">Become a Merchant</Link>}
+                {['CUSTOMER','MERCHANT'].includes(user.role) && <Link to="/merchant/application-status" className="text-sm text-blue-700">Business application</Link>}
+                {user.role === 'ADMIN' && <Link to="/admin/merchants" className="text-sm text-blue-700">Merchant applications</Link>}
+                {user.role === 'ADMIN' && <Link to="/admin/users" className="text-sm font-medium text-blue-700">User accounts</Link>}
                 <Link
                   to={getDashboardPath()}
                   className="flex items-center space-x-1 text-sm font-medium text-slate-700 hover:text-blue-600 px-3 py-2 rounded-lg hover:bg-slate-50 transition"

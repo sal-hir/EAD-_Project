@@ -1,22 +1,23 @@
 # Service boundaries
 
-Only auth-service is implemented in this milestone. Every future service will
-have its own Maven build, Dockerfile, deployment and database ownership.
+Auth Service and Merchant Service are implemented. Each has its own Maven build,
+Dockerfile and database schema; deployment wiring remains environment-specific.
 No shared JPA entities or cross-service table queries are permitted.
 
 | Service | Owns | Planned contract |
 | --- | --- | --- |
 | Auth | Identity, password hashes, Google subjects, roles, active status | /api/v1/auth/** |
 | Parcel | Delivery requests, pricing, tracking history | /api/v1/parcels/**, /api/v1/tracking/** |
-| Merchant | Business profiles, administrator approval, API keys | /api/v1/merchants/** |
+| Merchant | Business applications, profiles, administrator approval and audit | /api/v1/merchants/** |
 | Courier | Courier profiles and assignments | /api/v1/couriers/** |
 | Notification | Email delivery, event consumption, webhook retries | RabbitMQ consumers |
 
-Merchant onboarding is deferred, with no merchant registration or approval API
-in Auth. Future onboarding must create a pending business application and grant
-merchant privileges only after administrator approval. Public identity signup
-only creates CUSTOMER accounts. Staff provisioning needs a separate, audited
-administrative workflow; there are no seeded passwords or public role endpoints.
+Merchant owns only the `merchant` schema. Auth owns only `auth`, including password
+recovery and the narrowly scoped internal merchant-role grant. Merchant validates
+every bearer through Auth `/api/v1/auth/me`; it never receives the JWT signing key
+or reads Auth tables. Role synchronization requires both an active ADMIN bearer
+and a backend-only shared service credential. Public signup remains CUSTOMER-only.
+API keys, orders and delivery operations remain deferred.
 
 Future services must validate signed access tokens and enforce current account
 status and business permissions. A shared HMAC secret is acceptable only inside

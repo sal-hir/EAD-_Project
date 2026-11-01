@@ -9,6 +9,12 @@ import { Navbar } from './components/Navbar';
 import { Home } from './pages/Home';
 import { Login } from './pages/Login';
 import { Register } from './pages/Register';
+import { AdminUsers } from './pages/AdminUsers';
+import { ActivateAccount } from './pages/ActivateAccount';
+import { AccountSettings } from './pages/AccountSettings';
+import { ForgotPassword, ResetPassword } from './pages/PasswordRecovery';
+import { MerchantApply, MerchantStatus, MerchantDashboard } from './pages/MerchantOnboarding';
+import { AdminMerchants } from './pages/AdminMerchants';
 
 // Protected Route Guard
 const ProtectedRoute = ({ children, allowedRoles }) => {
@@ -45,10 +51,18 @@ export const App = () => {
                 {/* Public Routes */}
                 <Route path="/" element={<Home />} />
                 <Route path="/login" element={<Login />} />
+                <Route path="/forgot-password" element={<ForgotPassword />} />
+                <Route path="/reset-password" element={<ResetPassword />} />
                 <Route path="/register" element={<Register />} />
                 <Route path="/track" element={<MilestoneUnavailable title="Parcel tracking" />} />
                 <Route path="/track/:trackingNumber" element={<MilestoneUnavailable title="Parcel tracking" />} />
                 <Route path="/auth/callback" element={<OAuthCallback />} />
+                <Route path="/activate" element={<ActivateAccount />} />
+                <Route path="/account" element={<ProtectedRoute><AccountSettings /></ProtectedRoute>} />
+                <Route path="/admin/users" element={<ProtectedRoute allowedRoles={['ADMIN']}><AdminUsers /></ProtectedRoute>} />
+                <Route path="/admin/merchants" element={<ProtectedRoute allowedRoles={['ADMIN']}><AdminMerchants /></ProtectedRoute>} />
+                <Route path="/merchant/apply" element={<ProtectedRoute allowedRoles={['CUSTOMER','MERCHANT']}><MerchantApply /></ProtectedRoute>} />
+                <Route path="/merchant/application-status" element={<ProtectedRoute allowedRoles={['CUSTOMER','MERCHANT']}><MerchantStatus /></ProtectedRoute>} />
 
                 {/* Customer Routes */}
                 <Route
@@ -93,7 +107,7 @@ export const App = () => {
                   path="/merchant"
                   element={
                     <ProtectedRoute allowedRoles={['MERCHANT', 'ADMIN']}>
-                      <MilestoneUnavailable title="Merchant dashboard" />
+                      <MerchantDashboard />
                     </ProtectedRoute>
                   }
                 />

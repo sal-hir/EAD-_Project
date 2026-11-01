@@ -14,6 +14,7 @@ public class User {
     @Column(length = 30) private String phone;
     @Enumerated(EnumType.STRING) @Column(nullable = false, length = 20) private Role role;
     @Column(nullable = false) private boolean active = true;
+    @Column(name = "auth_version", nullable = false) private int authVersion;
     @Column(name = "google_subject", unique = true) private String googleSubject;
     @Column(nullable = false, updatable = false) private Instant createdAt;
     @Column(nullable = false) private Instant updatedAt;
@@ -37,4 +38,7 @@ public class User {
     public void setGoogleSubject(String subject) { googleSubject = subject; }
     public void setActive(boolean active) { this.active = active; }
     public void setRole(Role role) { this.role = role; }
+    public int getAuthVersion() { return authVersion; }
+    public void invalidateCredentials() { authVersion++; }
+    public void setPasswordHash(String hash) { passwordHash = hash; }
 }

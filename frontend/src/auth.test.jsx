@@ -8,6 +8,7 @@ import App from './App';
 vi.mock('./api/client', async (original) => ({
   ...await original(),
   api: { get: vi.fn(), post: vi.fn() },
+  merchantApi: { get: vi.fn().mockRejectedValue({ response: { status: 404 } }), post: vi.fn(), put: vi.fn() },
   setAccessToken: vi.fn(),
   sessionRequest: vi.fn(), refreshSession: vi.fn(), setSessionRefresher: vi.fn(() => () => {}),
 }));
@@ -143,5 +144,73 @@ describe('authentication and routing', () => {
     expect(sessionRequest).toHaveBeenCalledWith('/auth/oauth/exchange', { code: 'one-time-code', verifier: 'browser-verifier' });
     expect(sessionStorage.getItem('swiftdrop_oauth_verifier')).toBeNull();
     expect(window.location.hash).toBe('');
+  });
+});
+
+
+describe('five-role identity flows', () => {
+  it.each([
+    ['CUSTOMER', '/customer', 'Customer dashboard'],
+    ['MERCHANT', '/merchant', 'Merchant dashboard'],
+    ['COURIER', '/courier', 'Courier dashboard'],
+    ['DISPATCHER', '/admin', 'Administration'],
+    ['ADMIN', '/admin', 'Administration'],
+  ])('redirects verified %s login to its dashboard', async (role, path, heading) => {
+    const profile = { ...customer, role };
+    api.get.mockImplementation(endpoint => Promise.resolve({ data: { data: endpoint === '/auth/providers' ? { google: false } : profile } }));
+    window.history.replaceState(null, '', '/login'); render(<App />);
+    fireEvent.change(screen.getByPlaceholderText('name@example.com'), { target: { value: customer.email } });
+    fireEvent.change(document.querySelector('input[type="password"]'), { target: { value: 'IsolatedTest@123!' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Sign in' }));
+    await screen.findByRole('heading', { name: heading });
+    expect(window.location.pathname).toBe(path);
+    expect(!!screen.queryByRole('link', { name: 'User accounts' })).toBe(role === 'ADMIN');
+  });
+  it.each(['CUSTOMER', 'MERCHANT', 'COURIER', 'DISPATCHER'])('blocks %s from the identity management route', async role => {
+    refreshSession.mockResolvedValue(result.data.data);
+    api.get.mockResolvedValue({ data: { data: { ...customer, role } } });
+    window.history.replaceState(null, '', '/admin/users'); render(<App />);
+    await waitFor(() => expect(window.location.pathname).toBe('/'));
+    expect(api.get.mock.calls.some(([path]) => path === '/auth/admin/users')).toBe(false);
+  });
+  it('lets ADMIN provision an identity and display its private activation link', async () => {
+    const admin = { ...customer, role: 'ADMIN' };
+    refreshSession.mockResolvedValue(result.data.data);
+    api.get.mockImplementation(path => Promise.resolve({ data: { data: path === '/auth/admin/users' ? { users: [admin], page: 0, pages: 1 } : admin } }));
+    api.post.mockResolvedValue({ data: { data: { user: { active: true }, activationUrl: 'http://localhost:3000/activate#code=one-use' } } });
+    window.history.replaceState(null, '', '/admin/users'); render(<App />);
+    await screen.findByRole('heading', { name: 'User accounts' });
+    fireEvent.change(screen.getByLabelText('name'), { target: { value: 'Courier test' } });
+    fireEvent.change(screen.getByLabelText('email'), { target: { value: 'courier@example.lk' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Create identity' }));
+    expect(await screen.findByRole('link', { name: /activate#code/ })).toBeTruthy();
+    expect(api.post).toHaveBeenCalledWith('/auth/admin/users', { name: 'Courier test', email: 'courier@example.lk', phone: '', role: 'COURIER', active: true });
+    expect(screen.queryByRole('option', { name: 'ADMIN' })).toBeNull();
+  });
+  it('activates with a matching password and removes the code fragment', async () => {
+    window.history.replaceState(null, '', '/activate#code=' + 'a'.repeat(43));
+    render(<React.StrictMode><App /></React.StrictMode>);
+    fireEvent.change(screen.getByLabelText('New password'), { target: { value: 'InitialTest@123!' } });
+    fireEvent.change(screen.getByLabelText('Confirm password'), { target: { value: 'InitialTest@123!' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Set password' }));
+    expect(await screen.findByText('Password set. You can now sign in.')).toBeTruthy();
+    expect(api.post).toHaveBeenCalledWith('/auth/activate', { code: 'a'.repeat(43), password: 'InitialTest@123!' });
+    expect(window.location.hash).toBe('');
+  });
+  it('shows activation errors without pretending the password was set', async () => {
+    window.history.replaceState(null, '', '/activate#code=' + 'a'.repeat(43));
+    api.post.mockRejectedValue({ response: { data: { message: 'Activation expired' } } });
+    render(<App />);
+    fireEvent.change(screen.getByLabelText('New password'), { target: { value: 'InitialTest@123!' } });
+    fireEvent.change(screen.getByLabelText('Confirm password'), { target: { value: 'InitialTest@123!' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Set password' }));
+    expect(await screen.findByRole('alert')).toHaveProperty('textContent', 'Activation expired');
+  });
+  it('shows account linking only for an unlinked password identity', async () => {
+    refreshSession.mockResolvedValue(result.data.data);
+    api.get.mockImplementation(path => Promise.resolve({ data: { data: path === '/auth/account' ? { passwordEnabled: true, googleLinked: false, googleAvailable: true } : customer } }));
+    window.history.replaceState(null, '', '/account'); render(<App />);
+    expect(await screen.findByRole('button', { name: 'Connect Google Account' })).toBeTruthy();
+    expect(screen.getByLabelText('Current password')).toBeTruthy();
   });
 });

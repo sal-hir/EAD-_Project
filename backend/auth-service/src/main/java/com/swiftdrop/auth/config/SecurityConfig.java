@@ -82,9 +82,12 @@ public class SecurityConfig {
             .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .requestCache(c -> c.disable()).formLogin(c -> c.disable()).httpBasic(c -> c.disable()).logout(c -> c.disable())
             .authorizeHttpRequests(a -> a
-                .requestMatchers("/api/v1/auth/register", "/api/v1/auth/login", "/api/v1/auth/oauth/exchange", "/api/v1/auth/providers", "/api/v1/auth/refresh", "/api/v1/auth/logout").permitAll()
+                .requestMatchers("/api/v1/auth/password/forgot", "/api/v1/auth/password/reset").permitAll()
+                .requestMatchers("/api/v1/auth/register", "/api/v1/auth/login", "/api/v1/auth/oauth/exchange", "/api/v1/auth/providers", "/api/v1/auth/refresh", "/api/v1/auth/logout", "/api/v1/auth/activate").permitAll()
                 .requestMatchers("/actuator/health", "/actuator/health/**").permitAll()
-                .requestMatchers("/api/v1/auth/admin/**").hasAnyRole("ADMIN", "DISPATCHER")
+                .requestMatchers("/api/v1/auth/admin/me").hasAnyRole("ADMIN", "DISPATCHER")
+                .requestMatchers("/api/v1/auth/admin/**").hasRole("ADMIN")
+                .requestMatchers("/api/v1/auth/internal/**").hasRole("ADMIN")
                 .anyRequest().authenticated())
             .exceptionHandling(e -> e
                 .authenticationEntryPoint((req, res, ex) -> ApiErrors.write(mapper, res, 401, "Authentication required"))
@@ -96,6 +99,8 @@ public class SecurityConfig {
                     User user;
                     try { user = users.findById(UUID.fromString(token.getSubject())).filter(User::isActive).orElseThrow(); }
                     catch (IllegalArgumentException | NoSuchElementException ex) { throw new BadCredentialsException("Account unavailable"); }
+                    Number version = token.getClaim("ver");
+                    if ((version == null ? 0 : version.intValue()) != user.getAuthVersion()) throw new BadCredentialsException("Credentials changed");
                     if (token.hasClaim("sid")) {
                         try {
                             var session = sessions.findById(UUID.fromString(token.getClaimAsString("sid")))

@@ -116,6 +116,7 @@ export const Login = () => {
           </form>
 
           {/* Social Google Login */}
+          <Link to="/forgot-password" className="block text-sm text-blue-700 mt-4">Forgot password?</Link>
           <div className="mt-6">
             <div className="relative">
               <div className="absolute inset-0 flex items-center">
