@@ -1,10 +1,20 @@
-﻿import axios from 'axios';
+import axios from 'axios';
 
 export const API_BASE_URL = (import.meta.env.VITE_API_URL || 'http://localhost:4000').replace(/\/$/, '');
 let accessToken = null;
 let sessionRefresher = null;
 let refreshPromise = null;
 let sessionQueue = Promise.resolve();
+let errorNotifier = null;
+/**
+ * Register a callback that receives user-facing error messages from the global
+ * Axios error interceptor. Called by ErrorProvider on mount; returns a cleanup
+ * function that unregisters the notifier.
+ */
+export const setErrorNotifier = (callback) => {
+  errorNotifier = callback;
+  return () => { if (errorNotifier === callback) errorNotifier = null; };
+};
 export const setAccessToken = (token) => { accessToken = token; };
 export const setSessionRefresher = (callback) => {
   sessionRefresher = callback;
@@ -58,6 +68,12 @@ instance.interceptors.response.use(
         accessToken = null;
         window.dispatchEvent(new Event('swiftdrop:unauthorized'));
       }
+    }
+    // Global error notification for non-401 errors (skip if request opted out)
+    if (error.response?.status !== 401 && !config?.silent && errorNotifier) {
+      const body = error.response?.data;
+      const message = body?.message || (error.code === 'ERR_NETWORK' ? 'Network error — please check your connection' : 'An unexpected error occurred');
+      errorNotifier(message);
     }
     return Promise.reject(error);
   }
