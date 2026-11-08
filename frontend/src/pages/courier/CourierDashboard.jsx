@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { api } from '../../api/client';
+import { courierApi as api } from '../../api/client';
 import { StatusBadge } from '../../components/StatusBadge';
 import { Truck, CheckCircle2, Clock, AlertTriangle, Upload, Camera, RefreshCw, Check } from 'lucide-react';
 
