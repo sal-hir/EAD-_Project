@@ -27,8 +27,35 @@ services:
       context: ./frontend
       args:
         VITE_API_URL: ${VITE_API_URL:-http://localhost:4000}
+        VITE_COURIER_API_URL: ${VITE_COURIER_API_URL:-http://localhost:4003}
     ports:
       - "3000:80"
+    depends_on:
+      auth-service:
+        condition: service_healthy
+    restart: unless-stopped
+
+  courier-service:
+    build: ./backend/courier-service
+    environment:
+      COURIER_PORT: 4003
+      COURIER_DB_URL: ${COURIER_DB_URL:-${AUTH_DB_URL}}
+      COURIER_MIGRATION_DB_URL: ${COURIER_MIGRATION_DB_URL:-${AUTH_MIGRATION_DB_URL}}
+      COURIER_DB_USER: ${COURIER_DB_USER:-${AUTH_DB_USER}}
+      COURIER_DB_PASSWORD: ${COURIER_DB_PASSWORD:-${AUTH_DB_PASSWORD}}
+      AUTH_SERVICE_URL: http://auth-service:4000
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3000}
+      UPLOAD_DIR: /app/uploads
+    ports:
+      - "4003:4003"
+    volumes:
+      - uploads_data:/app/uploads
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://localhost:4003/actuator/health/readiness"]
+      interval: 10s
+      timeout: 5s
+      start_period: 40s
+      retries: 10
     depends_on:
       auth-service:
         condition: service_healthy
