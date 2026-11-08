@@ -3,7 +3,6 @@ package com.swiftdrop.courier.client;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.swiftdrop.courier.exception.ApiFailure;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
@@ -16,7 +15,6 @@ import java.util.Set;
 import java.util.UUID;
 
 @Component
-@ConditionalOnMissingBean(IdentityGateway.class)
 public class AuthGateway implements IdentityGateway {
     private final RestClient client;
 
