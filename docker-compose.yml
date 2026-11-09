@@ -22,11 +22,50 @@ services:
       retries: 10
     restart: unless-stopped
 
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  tracking-service:
+    build: ./backend/tracking-service
+    environment:
+      TRACKING_PORT: 4003
+      TRACKING_DB_URL: ${TRACKING_DB_URL:-${AUTH_DB_URL:?Set the Neon JDBC URL in .env}}
+      TRACKING_MIGRATION_DB_URL: ${TRACKING_MIGRATION_DB_URL:-${AUTH_MIGRATION_DB_URL:-${AUTH_DB_URL:?Set direct Neon URL}}}
+      TRACKING_DB_USER: ${TRACKING_DB_USER:-${AUTH_DB_USER:-swiftdrop}}
+      TRACKING_DB_PASSWORD: ${TRACKING_DB_PASSWORD:-${AUTH_DB_PASSWORD:?Set AUTH_DB_PASSWORD in .env}}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3000}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+    ports:
+      - "4003:4003"
+    depends_on:
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://localhost:4003/actuator/health/readiness"]
+      interval: 10s
+      timeout: 5s
+      start_period: 40s
+      retries: 10
+    restart: unless-stopped
+
   frontend:
     build:
       context: ./frontend
       args:
         VITE_API_URL: ${VITE_API_URL:-http://localhost:4000}
+        VITE_TRACKING_API_URL: ${VITE_TRACKING_API_URL:-http://localhost:4003}
     ports:
       - "3000:80"
     depends_on:
@@ -63,3 +102,4 @@ volumes:
   rabbitmq_data:
   uploads_data:
   auth_postgres_data:
+  redis_data:
