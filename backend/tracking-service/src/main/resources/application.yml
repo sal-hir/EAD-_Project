@@ -1,0 +1,59 @@
+server:
+  port: ${PORT:${TRACKING_PORT:4003}}
+
+spring:
+  application:
+    name: tracking-service
+  config:
+    import: "optional:file:./.env[.properties]"
+  datasource:
+    url: ${spring.datasource.url:${TRACKING_DB_URL:${AUTH_DB_URL:jdbc:postgresql://localhost:5432/neondb}}}
+    username: ${spring.datasource.username:${TRACKING_DB_USER:${AUTH_DB_USER:neondb_owner}}}
+    password: ${spring.datasource.password:${TRACKING_DB_PASSWORD:${AUTH_DB_PASSWORD:}}}
+    hikari:
+      maximum-pool-size: ${TRACKING_DB_POOL_SIZE:3}
+      minimum-idle: 0
+  flyway:
+    url: ${spring.flyway.url:${TRACKING_MIGRATION_DB_URL:${spring.datasource.url}}}
+    user: ${spring.datasource.username}
+    password: ${spring.datasource.password}
+    schemas: tracking
+    default-schema: tracking
+    create-schemas: true
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: update
+    properties:
+      hibernate.default_schema: tracking
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+      timeout: 2000ms
+  jackson:
+    deserialization:
+      fail-on-unknown-properties: false
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      probes:
+        enabled: true
+      group:
+        readiness:
+          include: readinessState,db
+
+app:
+  frontend-url: ${FRONTEND_URL:http://localhost:3000}
+  cache:
+    ttl-seconds: ${TRACKING_CACHE_TTL:60}
+  gemini:
+    api-key: ${GEMINI_API_KEY:}
+    model: ${GEMINI_MODEL:gemini-1.5-flash}
+    endpoint: ${GEMINI_ENDPOINT:https://generativelanguage.googleapis.com/v1beta}
