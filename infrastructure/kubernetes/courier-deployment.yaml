@@ -1,0 +1,88 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: courier-service
+  labels:
+    app: courier-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: courier-service
+  template:
+    metadata:
+      labels:
+        app: courier-service
+    spec:
+      terminationGracePeriodSeconds: 30
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+      containers:
+        - name: courier-service
+          image: swiftdrop/courier-service:0.1.0
+          ports:
+            - containerPort: 4003
+          env:
+            - name: COURIER_PORT
+              value: "4003"
+            - name: UPLOAD_DIR
+              value: "/app/uploads"
+            - name: AUTH_SERVICE_URL
+              value: "http://auth-service:4000"
+            - name: FRONTEND_URL
+              value: "http://localhost:3000"
+          envFrom:
+            - secretRef:
+                name: courier-secrets
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: "1"
+              memory: 512Mi
+            volumeMounts:
+            - name: proof-storage
+              mountPath: /app/uploads
+            - name: tmp
+              mountPath: /tmp
+          startupProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: 4003
+            periodSeconds: 5
+            failureThreshold: 30
+          livenessProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: 4003
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: 4003
+            periodSeconds: 5
+      volumes:
+        - name: proof-storage
+          persistentVolumeClaim:
+            claimName: courier-proof-pvc
+        - name: tmp
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: courier-service
+  labels:
+    app: courier-service
+spec:
+  type: ClusterIP
+  selector:
+    app: courier-service
+  ports:
+    - port: 4003
+      targetPort: 4003
+

@@ -1,0 +1,15 @@
+spring:
+  datasource:
+    url: jdbc:h2:mem:courier;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DB_CLOSE_DELAY=-1;INIT=CREATE SCHEMA IF NOT EXISTS courier
+    username: sa
+    password: ''
+    driver-class-name: org.h2.Driver
+  flyway:
+    url: ${spring.datasource.url}
+app:
+  auth-url: http://localhost:4000
+  upload-dir: ./target/test-uploads
+logging:
+  level:
+    root: WARN
+
