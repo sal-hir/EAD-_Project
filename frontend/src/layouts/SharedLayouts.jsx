@@ -4,6 +4,7 @@ import { Truck, LayoutDashboard, UserRound, Store, Users, ClipboardList, Menu, L
 import { useAuth } from '../context/AuthContext';
 import { Button, Modal } from '../components/ui';
 import { PublicFooter, publicLinks } from '../components/PublicWebsite';
+import { NotificationBellDropdown } from '../components/NotificationBellDropdown';
 
 export const roleLabels = { CUSTOMER: 'Customer', MERCHANT: 'Merchant', COURIER: 'Courier', DISPATCHER: 'Dispatcher', ADMIN: 'Admin' };
 const dashboards = { CUSTOMER: '/customer', MERCHANT: '/merchant', COURIER: '/courier', DISPATCHER: '/admin', ADMIN: '/admin' };
@@ -65,6 +66,7 @@ export function TopNavbar({ portal = false }) {
       {!portal && <nav aria-label="Public navigation" className="hidden items-center gap-4 lg:flex">{publicLinks.map(([to, label]) => <NavLink end={to === '/'} key={to} to={to} className={({ isActive }) => `inline-flex min-h-11 items-center text-sm font-medium ${isActive ? 'text-[#F95716]' : 'text-slate-600 hover:text-[#F95716]'}`}>{label}</NavLink>)}</nav>}
       {isAuthenticated ? <>
         {!portal && <Link to={dashboards[user.role] || '/account'} className="ui-button ui-button-secondary">Dashboard</Link>}
+        <NotificationBellDropdown />
         <div className={`hidden min-w-0 text-right ${portal ? 'sm:block' : 'xl:block'}`}><p className="max-w-44 truncate text-sm font-semibold">{user.name}</p><p className="text-xs text-slate-500">{roleLabels[user.role]}</p></div>
         <Button variant="ghost" aria-label="Logout" title="Logout" busy={busy} onClick={handleLogout} className="px-2 text-slate-500"><LogOut size={20} /></Button>
       </> : <div className="hidden gap-2 sm:flex"><Link to="/login" className="ui-button ui-button-ghost">Log in</Link><Link to="/register" className="ui-button ui-button-primary">Register</Link></div>}

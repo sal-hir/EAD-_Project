@@ -1,0 +1,136 @@
+{
+  "rabbit_version": "3.13.0",
+  "vhosts": [
+    {
+      "name": "/"
+    }
+  ],
+  "users": [
+    {
+      "name": "swiftdrop",
+      "password": "swiftdrop_pass",
+      "tags": [
+        "administrator"
+      ],
+      "limits": {}
+    },
+    {
+      "name": "guest",
+      "password": "guest",
+      "tags": [
+        "administrator"
+      ],
+      "limits": {}
+    }
+  ],
+  "permissions": [
+    {
+      "user": "swiftdrop",
+      "vhost": "/",
+      "configure": ".*",
+      "write": ".*",
+      "read": ".*"
+    },
+    {
+      "user": "guest",
+      "vhost": "/",
+      "configure": ".*",
+      "write": ".*",
+      "read": ".*"
+    }
+  ],
+  "exchanges": [
+    {
+      "name": "swiftdrop.events",
+      "vhost": "/",
+      "type": "topic",
+      "durable": true,
+      "auto_delete": false,
+      "internal": false,
+      "arguments": {}
+    },
+    {
+      "name": "swiftdrop.events.dlx",
+      "vhost": "/",
+      "type": "direct",
+      "durable": true,
+      "auto_delete": false,
+      "internal": false,
+      "arguments": {}
+    }
+  ],
+  "queues": [
+    {
+      "name": "swiftdrop.notifications.email",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {
+        "x-dead-letter-exchange": "swiftdrop.events.dlx",
+        "x-dead-letter-routing-key": "email.dlq"
+      }
+    },
+    {
+      "name": "swiftdrop.notifications.sms",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {
+        "x-dead-letter-exchange": "swiftdrop.events.dlx",
+        "x-dead-letter-routing-key": "sms.dlq"
+      }
+    },
+    {
+      "name": "swiftdrop.notifications.webhook",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {
+        "x-dead-letter-exchange": "swiftdrop.events.dlx",
+        "x-dead-letter-routing-key": "webhook.dlq"
+      }
+    },
+    {
+      "name": "swiftdrop.dead-letter",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {}
+    }
+  ],
+  "bindings": [
+    {
+      "source": "swiftdrop.events",
+      "vhost": "/",
+      "destination": "swiftdrop.notifications.email",
+      "destination_type": "queue",
+      "routing_key": "parcel.*",
+      "arguments": {}
+    },
+    {
+      "source": "swiftdrop.events",
+      "vhost": "/",
+      "destination": "swiftdrop.notifications.sms",
+      "destination_type": "queue",
+      "routing_key": "parcel.*",
+      "arguments": {}
+    },
+    {
+      "source": "swiftdrop.events",
+      "vhost": "/",
+      "destination": "swiftdrop.notifications.webhook",
+      "destination_type": "queue",
+      "routing_key": "parcel.*",
+      "arguments": {}
+    },
+    {
+      "source": "swiftdrop.events.dlx",
+      "vhost": "/",
+      "destination": "swiftdrop.dead-letter",
+      "destination_type": "queue",
+      "routing_key": "#",
+      "arguments": {}
+    }
+  ]
+}
+

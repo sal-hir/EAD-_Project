@@ -19,13 +19,16 @@ public class CourierService {
     private final CourierRepository courierRepository;
     private final CourierParcelRepository parcelRepository;
     private final ParcelStatusHistoryRepository historyRepository;
+    private final EventPublisherService eventPublisherService;
 
     public CourierService(CourierRepository courierRepository,
                           CourierParcelRepository parcelRepository,
-                          ParcelStatusHistoryRepository historyRepository) {
+                          ParcelStatusHistoryRepository historyRepository,
+                          EventPublisherService eventPublisherService) {
         this.courierRepository = courierRepository;
         this.parcelRepository = parcelRepository;
         this.historyRepository = historyRepository;
+        this.eventPublisherService = eventPublisherService;
     }
 
     @Transactional
@@ -99,6 +102,7 @@ public class CourierService {
             parcel.setDeliveredAt(OffsetDateTime.now());
         }
 
+        DeliveryStatus oldStatus = parcel.getStatus();
         parcel.setStatus(req.status());
         parcel = parcelRepository.save(parcel);
 
@@ -111,6 +115,28 @@ public class CourierService {
         history.setFailureReason(req.failureReason());
         history.setUpdatedBy(caller.id());
         historyRepository.save(history);
+
+        // Publish status changed event to RabbitMQ
+        ParcelStatusEvent event = new ParcelStatusEvent(
+            "parcel.status_changed",
+            parcel.getId(),
+            parcel.getTrackingNumber(),
+            courier.getId(),
+            courier.getName(),
+            oldStatus != null ? oldStatus.name() : null,
+            req.status().name(),
+            parcel.getRecipientName(),
+            parcel.getRecipientEmail(),
+            parcel.getRecipientPhone(),
+            parcel.getPickupCity(),
+            parcel.getDropoffCity(),
+            parcel.getWeightKg(),
+            req.note(),
+            req.failureReason(),
+            req.proofImageUrl(),
+            OffsetDateTime.now()
+        );
+        eventPublisherService.publishStatusEvent(event);
 
         return ParcelDto.fromEntity(parcel);
     }

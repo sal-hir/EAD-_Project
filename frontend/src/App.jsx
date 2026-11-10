@@ -1,6 +1,8 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import { ToastProvider } from './context/ToastContext';
+import { NotificationCenterProvider } from './context/NotificationCenterContext';
 import { OAuthCallback } from './pages/OAuthCallback';
 import { MilestoneUnavailable } from './components/MilestoneUnavailable';
 import { ApplicationLayout } from './layouts/SharedLayouts';
@@ -47,8 +49,9 @@ export const App = () => {
   return (
     <Router>
       <AuthProvider>
-
-          <ApplicationLayout>
+        <ToastProvider>
+          <NotificationCenterProvider>
+            <ApplicationLayout>
               <Routes>
                 {/* Public Routes */}
                 <Route path="/" element={<Home />} />
@@ -130,8 +133,9 @@ export const App = () => {
                 {/* Fallback */}
                 <Route path="*" element={<Navigate to="/" replace />} />
               </Routes>
-          </ApplicationLayout>
-
+            </ApplicationLayout>
+          </NotificationCenterProvider>
+        </ToastProvider>
       </AuthProvider>
     </Router>
   );
