@@ -1,0 +1,15 @@
+{
+  "name": "swiftdrop-notification-service",
+  "version": "1.0.0",
+  "description": "SwiftDrop Notification Consumer - processes RabbitMQ events and sends emails/SMS",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js"
+  },
+  "dependencies": {
+    "amqplib": "^0.10.4",
+    "nodemailer": "^6.9.16",
+    "winston": "^3.17.0"
+  }
+}
+

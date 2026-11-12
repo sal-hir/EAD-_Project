@@ -21,9 +21,10 @@ const sessionApi = axios.create({
 });
 export const MERCHANT_API_BASE_URL = (import.meta.env.VITE_MERCHANT_API_URL || 'http://localhost:4001').replace(/\/$/, '');
 export const merchantApi = axios.create({ baseURL: `${MERCHANT_API_BASE_URL}/api/v1`, headers: { 'Content-Type': 'application/json' } });
-export const TRACKING_API_BASE_URL = (import.meta.env.VITE_TRACKING_API_URL || 'http://localhost:4003').replace(/\/$/, '');
+export const COURIER_API_BASE_URL = (import.meta.env.VITE_COURIER_API_URL || 'http://localhost:4003').replace(/\/$/, '');
+export const courierApi = axios.create({ baseURL: `${COURIER_API_BASE_URL}/api/v1`, headers: { 'Content-Type': 'application/json' } });
+export const TRACKING_API_BASE_URL = (import.meta.env.VITE_TRACKING_API_URL || import.meta.env.VITE_API_URL || 'http://localhost:4000').replace(/\/$/, '');
 export const trackingApi = axios.create({ baseURL: `${TRACKING_API_BASE_URL}/api/v1`, headers: { 'Content-Type': 'application/json' } });
-
 // Serialize cookie mutations, including across tabs when Web Locks is available.
 export const sessionRequest = (endpoint, payload = {}) => {
   const request = () => sessionApi.post(endpoint, payload);
@@ -68,8 +69,7 @@ instance.interceptors.response.use(
 };
 installAuthentication(api);
 installAuthentication(merchantApi);
-installAuthentication(trackingApi);
-
+installAuthentication(courierApi);
 export const authError = (error, fallback) => {
   const body = error.response?.data;
   const fields = Object.entries(body?.errors || {}).map(([field, message]) => `${field}: ${message}`);
