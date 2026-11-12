@@ -7,7 +7,8 @@ No shared JPA entities or cross-service table queries are permitted.
 | Service | Owns | Planned contract |
 | --- | --- | --- |
 | Auth | Identity, password hashes, Google subjects, roles, active status | /api/v1/auth/** |
-| Parcel | Delivery requests, pricing, tracking history | /api/v1/parcels/**, /api/v1/tracking/** |
+| Tracking | Real-time tracking, Redis cache, SSE push, GenAI assistant (MCP tools) | /api/v1/tracking/**, /api/v1/ai/** |
+| Parcel | Delivery requests, pricing, booking receipt | /api/v1/parcels/** |
 | Merchant | Business applications, profiles, administrator approval and audit | /api/v1/merchants/** |
 | Courier | Courier profiles and assignments | /api/v1/couriers/** |
 | Notification | Email delivery, event consumption, webhook retries | RabbitMQ consumers |
