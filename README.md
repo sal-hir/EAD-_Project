@@ -8,6 +8,12 @@ workflows are implemented. Parcel, courier, delivery orders and notification eve
 remain future work; their UI routes retain explicit coming-soon states.
 Original dashboard components are preserved for the next migration.
 
+Approved merchants can now generate/revoke API keys at `/merchant/credentials`.
+ADMIN can inspect/revoke keys from the merchant review page. Full keys are shown
+only once; machine requests authenticate through `X-API-Key` on Merchant Service.
+See [API key endpoints, security and Member 5 integration](docs/merchant-api-keys.md).
+OAuth client credentials and actual Merchant Orders integration remain pending.
+
 ## Run with Docker Compose (recommended)
 
 Install Docker with its Linux engine running. From the repository root:

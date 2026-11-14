@@ -62,8 +62,9 @@ Merchant HTTP servers with isolated H2 databases and Edge/Playwright. It covers
 registration, approval, role synchronization, session revocation, rejection,
 editing and resubmission without creating privileged accounts in Neon.
 
-API keys and OAuth client credentials are later phases; these instructions verify
-the existing browser onboarding workflow.
+API key management is now implemented. See [the API key contract](../../docs/merchant-api-keys.md)
+for generation, one-time display, validation, revocation and Member 5 integration.
+OAuth client credentials remain a later phase.
 
 ## Verification on 2026-11-14
 

@@ -83,7 +83,7 @@ export const MerchantStatus = ({ dashboard = false }) => {
           try { setApplication((await merchantApi.post('/merchants/applications/me/resubmit', { version: application.version })).data.data); }
           catch (e) { setError(authError(e, 'Could not resubmit application')); } finally { setBusy(false); }
         }}>Resubmit application</button>}
-        {dashboard && application.status === 'APPROVED' && <p role="status" className="bg-blue-50 rounded-lg p-4">Delivery order APIs are coming soon.</p>}
+        {dashboard && application.status === 'APPROVED' && <div className="space-y-3"><Link to="/merchant/credentials" className="ui-button ui-button-primary">Manage API credentials</Link><p role="status" className="bg-blue-50 rounded-lg p-4">Delivery order APIs are coming soon.</p></div>}
       </div>}
     {!loading && application && <button onClick={load} className="text-blue-700">Refresh status</button>}
   </section>;

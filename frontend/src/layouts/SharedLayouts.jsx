@@ -14,6 +14,7 @@ export function navigationFor(role) {
     { to: dashboards[role], label: 'Dashboard', icon: LayoutDashboard, end: true },
     ...(role === 'CUSTOMER' ? [{ to: '/merchant/apply', label: 'Become a Merchant', icon: Store }, { to: '/customer/new', label: 'New Delivery', icon: PlusCircle }] : []),
     ...(['CUSTOMER', 'MERCHANT'].includes(role) ? [{ to: '/merchant/application-status', label: 'Business application', icon: ClipboardList }] : []),
+    ...(role === 'MERCHANT' ? [{ to: '/merchant/credentials', label: 'API credentials', icon: Store }] : []),
     ...(role === 'ADMIN' ? [{ to: '/admin/merchants', label: 'Merchant applications', icon: Store }, { to: '/admin/users', label: 'User accounts', icon: Users }] : []),
     { to: '/account', label: 'Account', icon: UserRound },
   ];

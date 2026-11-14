@@ -13,7 +13,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.client.*;
 
 @Component
-public class AuthGateway implements IdentityGateway {
+public class AuthGateway implements IdentityGateway,MerchantIdentityGateway {
     private final RestClient client;private final String key;
     public AuthGateway(String url,String key){this(url,key,false);}
     @Autowired
@@ -44,5 +44,18 @@ public class AuthGateway implements IdentityGateway {
                 .body(Map.of("userId",applicant)).retrieve().body(JsonNode.class);
             if(body==null||!body.path("success").asBoolean()||!applicant.toString().equals(body.path("data").path("id").asText())||!"MERCHANT".equals(body.path("data").path("role").asText()))throw new ApiFailure(503,"Role synchronization unavailable");
         }catch(RestClientException e){throw new ApiFailure(503,"Role synchronization unavailable");}
+    }
+    @Override public void requireActiveMerchant(UUID userId){
+        if(key.length()<32)throw new ApiFailure(503,"Merchant integration is not configured");
+        try{
+            JsonNode body=client.post().uri("/api/v1/auth/internal/merchant-api/identity")
+                .header("X-SwiftDrop-Service-Key",key).body(Map.of("userId",userId)).retrieve().body(JsonNode.class);
+            JsonNode profile=body==null?null:body.path("data");
+            if(profile==null||!body.path("success").asBoolean()||!userId.toString().equals(profile.path("id").asText()))
+                throw new ApiFailure(503,"Authentication unavailable");
+            if(!profile.path("active").asBoolean()||!"MERCHANT".equals(profile.path("role").asText()))
+                throw new ApiFailure(401,"Merchant identity unavailable");
+        }catch(RestClientResponseException e){throw new ApiFailure(e.getStatusCode().value()==404?401:503,"Authentication unavailable");}
+        catch(RestClientException e){throw new ApiFailure(503,"Authentication unavailable");}
     }
 }

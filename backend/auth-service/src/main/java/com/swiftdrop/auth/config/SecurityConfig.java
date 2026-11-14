@@ -87,6 +87,8 @@ public class SecurityConfig {
                 .requestMatchers("/actuator/health", "/actuator/health/**").permitAll()
                 .requestMatchers("/api/v1/auth/admin/me").hasAnyRole("ADMIN", "DISPATCHER")
                 .requestMatchers("/api/v1/auth/admin/**").hasRole("ADMIN")
+                // This exact POST uses the controller's backend service-key check, not a user JWT.
+                .requestMatchers(org.springframework.http.HttpMethod.POST, "/api/v1/auth/internal/merchant-api/identity").permitAll()
                 .requestMatchers("/api/v1/auth/internal/**").hasRole("ADMIN")
                 .anyRequest().authenticated())
             .exceptionHandling(e -> e

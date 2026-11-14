@@ -62,11 +62,45 @@ async function review(admin, name, decision) {
   assert.equal((await customerContext.request.get(`${merchant}/api/v1/merchants/admin/applications`, { headers: { Authorization: `Bearer ${customerToken}` } })).status(), 403); pass();
   stage = 'ADMIN approval securely grants merchant role and revokes prior customer session';
   const adminContext = await context(), admin = await adminContext.newPage(); admin.setDefaultTimeout(30000);
-  await login(admin, 'admin@onboarding.example', password, '/admin'); await review(admin, 'Browser Customer Business', 'approve');
+  const adminToken = await login(admin, 'admin@onboarding.example', password, '/admin'); await review(admin, 'Browser Customer Business', 'approve');
   assert.equal((await customerContext.request.get(`${auth}/api/v1/auth/me`, { headers: { Authorization: `Bearer ${customerToken}` } })).status(), 401);
   await customer.reload(); await customer.waitForURL(`${base}/login`); const approvedToken = await login(customer, email, replacement, '/merchant');
   await customer.getByText('Status: APPROVED', { exact: true }).waitFor();
   assert.equal((await customerContext.request.get(`${merchant}/api/v1/merchants/profile`, { headers: { Authorization: `Bearer ${approvedToken}` } })).status(), 200); pass();
+  stage = 'approved merchant generates a one-time API key and authenticates a machine request';
+  await customer.goto(`${base}/merchant/credentials`);
+  await customer.getByLabel('Key label', { exact: true }).fill('Browser integration');
+  await customer.getByRole('button', { name: 'Generate API key', exact: true }).click();
+  const rawKey = await customer.getByLabel('New API key (shown once)', { exact: true }).inputValue();
+  assert.match(rawKey, /^sd_mk_[A-Za-z0-9_-]{43}$/);
+  const machineResponse = await customerContext.request.get(`${merchant}/api/v1/merchant-api/identity`, { headers: { 'X-API-Key': rawKey } });
+  assert.equal(machineResponse.status(), 200); const machine = (await machineResponse.json()).data;
+  const metadata = await customerContext.request.get(`${merchant}/api/v1/merchants/api-keys`, { headers: { Authorization: `Bearer ${approvedToken}` } });
+  assert.equal(metadata.status(), 200); assert(!(await metadata.text()).includes(rawKey));
+  await customer.getByRole('button', { name: 'I have saved the key' }).click();
+  assert.equal(await customer.getByLabel('New API key (shown once)').count(), 0); pass();
+  stage = 'merchant revokes its API key and replay is rejected';
+  await customer.getByRole('button', { name: 'Revoke', exact: true }).click();
+  await customer.getByRole('button', { name: 'Revoke key', exact: true }).click();
+  await customer.getByText('API key revoked. Future requests using this key will be rejected.', { exact: true }).waitFor();
+  assert.equal((await customerContext.request.get(`${merchant}/api/v1/merchant-api/identity`, { headers: { 'X-API-Key': rawKey } })).status(), 401); pass();
+  stage = 'current Auth deactivation blocks API keys and ADMIN revocation is enforced';
+  await customer.getByLabel('Key label', { exact: true }).fill('Admin revocation');
+  await customer.getByRole('button', { name: 'Generate API key', exact: true }).click();
+  const adminKey = await customer.getByLabel('New API key (shown once)', { exact: true }).inputValue();
+  assert.equal((await customerContext.request.get(`${merchant}/api/v1/merchant-api/identity`, { headers: { 'X-API-Key': adminKey } })).status(), 200);
+  assert.equal((await adminContext.request.post(`${auth}/api/v1/auth/admin/users/${machine.userId}/status`, {
+    headers: { Authorization: `Bearer ${adminToken}` }, data: { active: false }
+  })).status(), 200);
+  assert.equal((await customerContext.request.get(`${merchant}/api/v1/merchant-api/identity`, { headers: { 'X-API-Key': adminKey } })).status(), 401);
+  await admin.goto(`${base}/admin/merchants/${machine.merchantId}/credentials`);
+  await admin.getByRole('button', { name: 'Revoke', exact: true }).click();
+  await admin.getByRole('button', { name: 'Revoke key', exact: true }).click();
+  await admin.getByText('API key revoked. Future requests using this key will be rejected.', { exact: true }).waitFor();
+  assert.equal((await adminContext.request.post(`${auth}/api/v1/auth/admin/users/${machine.userId}/status`, {
+    headers: { Authorization: `Bearer ${adminToken}` }, data: { active: true }
+  })).status(), 200);
+  assert.equal((await customerContext.request.get(`${merchant}/api/v1/merchant-api/identity`, { headers: { 'X-API-Key': adminKey } })).status(), 401); pass();
   stage = 'pre-provisioned merchant has no approved business by default';
   const existingContext = await context(), existing = await existingContext.newPage(); existing.setDefaultTimeout(30000);
   const existingToken = await login(existing, 'merchant@onboarding.example', password, '/merchant');
