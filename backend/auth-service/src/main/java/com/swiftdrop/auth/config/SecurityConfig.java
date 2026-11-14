@@ -105,7 +105,7 @@ public class SecurityConfig {
                     if ((version == null ? 0 : version.intValue()) != user.getAuthVersion()) throw new BadCredentialsException("Credentials changed");
                     if (token.hasClaim("sid")) {
                         try {
-                            var session = sessions.findById(UUID.fromString(token.getClaimAsString("sid")))
+                            sessions.findById(UUID.fromString(token.getClaimAsString("sid")))
                                 .filter(s -> s.isActive() && s.getUserId().equals(user.getId())).orElseThrow();
                         } catch (IllegalArgumentException | NoSuchElementException ex) { throw new BadCredentialsException("Session revoked"); }
                     }

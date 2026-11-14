@@ -7,6 +7,9 @@ spring:
   flyway:
     url: ${spring.datasource.url}
 app:
+  webhooks:
+    encryption-key: AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
+    worker-enabled: false
   auth-url: http://localhost:4000
   service-token: test-only-merchant-service-key-never-deploy
 logging:

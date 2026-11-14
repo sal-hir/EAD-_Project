@@ -104,7 +104,7 @@ class IdentityIntegrationTest {
     @Test void roleChangeAndDeactivationRevokeSessionAndLegacyAccess()throws Exception{
         User user=fixture(Role.COURIER);String legacy=jwt.issue(user).token();
         var browser=browserSessions.start(user.getId(),null);
-        var login=postAs("/login",null,Map.of("email",user.getEmail(),"password",PASSWORD)).andExpect(status().isOk());
+        postAs("/login",null,Map.of("email",user.getEmail(),"password",PASSWORD)).andExpect(status().isOk());
         postAs("/admin/users/"+user.getId()+"/role",adminToken,Map.of("role","DISPATCHER")).andExpect(status().isOk());
         mvc.perform(get("/api/v1/auth/me").header("Authorization","Bearer "+legacy)).andExpect(status().isUnauthorized());
         mvc.perform(get("/api/v1/auth/me").header("Authorization","Bearer "+browser.login().token())).andExpect(status().isUnauthorized());

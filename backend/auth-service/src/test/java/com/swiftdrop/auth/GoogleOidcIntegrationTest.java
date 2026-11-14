@@ -140,7 +140,7 @@ class GoogleOidcIntegrationTest {
     @ParameterizedTest @EnumSource(Role.class) void automaticLinkTraversesSignedOidcCallbackAndPreservesEveryRole(Role role) throws Exception {
         providerSubject="auto-linked-"+role;providerEmail="auto-linked-"+role.name().toLowerCase()+"@example.lk";
         User user=new User("Linked courier",providerEmail,passwords.encode("LinkTest@123!"),null);user.setRole(role);users.saveAndFlush(user);
-        var browser=sessions.start(user.getId(),null);String verifier="l".repeat(43);
+        sessions.start(user.getId(),null);String verifier="l".repeat(43);
         var start=mvc.perform(get("/oauth2/authorization/google").param("challenge",OAuthService.challenge(verifier))).andExpect(status().is3xxRedirection()).andReturn().getResponse();
         var params=query(start.getRedirectedUrl());nonce=params.get("nonce");
         var callback=mvc.perform(get("/login/oauth2/code/google").cookie(start.getCookie("SESSION"))
