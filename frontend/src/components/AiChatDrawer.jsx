@@ -132,22 +132,22 @@ export function AiChatDrawer() {
           onClick={() => setIsOpen(!isOpen)}
           aria-expanded={isOpen}
           aria-controls="swift-ai-chat-drawer"
-          className="group flex min-h-12 items-center gap-2.5 rounded-full bg-blue-600 px-5 py-3 text-white shadow-xl transition-all duration-200 hover:bg-blue-700 hover:scale-105 focus:outline-none focus:ring-4 focus:ring-blue-300"
+          className="group flex min-h-12 items-center gap-2.5 rounded-full bg-[#F95716] px-5 py-3 text-white shadow-2xl transition-all duration-200 hover:bg-[#E0480C] hover:scale-105 focus:outline-none focus:ring-4 focus:ring-orange-300"
         >
           {isOpen ? (
             <>
               <X size={20} className="text-white" />
-              <span className="text-sm font-semibold">Close Assistant</span>
+              <span className="text-sm font-bold">Close Assistant</span>
             </>
           ) : (
             <>
               <span className="relative flex h-3 w-3">
-                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-blue-300 opacity-75" />
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-orange-300 opacity-75" />
                 <span className="relative inline-flex h-3 w-3 rounded-full bg-emerald-400" />
               </span>
               <Bot size={20} className="text-white" />
-              <span className="text-sm font-semibold">Ask SwiftDrop AI</span>
-              <Sparkles size={16} className="text-blue-200" />
+              <span className="text-sm font-bold">Ask SwiftDrop AI</span>
+              <Sparkles size={16} className="text-orange-200" />
             </>
           )}
         </button>
@@ -161,15 +161,15 @@ export function AiChatDrawer() {
           className="fixed bottom-24 right-4 z-50 flex h-[540px] w-[calc(100vw-2rem)] flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl sm:right-6 sm:w-[420px]"
         >
           {/* Header */}
-          <header className="flex items-center justify-between border-b border-slate-800 bg-slate-900 px-5 py-3.5 text-white">
+          <header className="flex items-center justify-between border-b border-slate-800 bg-[#0E131F] px-5 py-3.5 text-white">
             <div className="flex items-center gap-3">
-              <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-600 text-white shadow-sm">
+              <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#F95716] text-white shadow-sm">
                 <Bot size={20} />
               </span>
               <div>
                 <div className="flex items-center gap-2">
                   <h3 className="text-sm font-bold text-white">SwiftDrop AI Assistant</h3>
-                  <span className="rounded-full bg-blue-500/20 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-blue-300 border border-blue-400/30">
+                  <span className="rounded-full bg-orange-500/20 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-orange-300 border border-orange-400/30">
                     MCP Tools
                   </span>
                 </div>
@@ -241,7 +241,7 @@ export function AiChatDrawer() {
                     type="button"
                     onClick={() => handleSend(chip.query)}
                     disabled={busy}
-                    className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-blue-200 bg-blue-50/70 px-3 py-1 text-xs font-medium text-blue-700 hover:bg-blue-100 hover:text-blue-800 transition disabled:opacity-50"
+                    className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-orange-200 bg-orange-50/80 px-3 py-1 text-xs font-semibold text-orange-700 hover:bg-orange-100 hover:text-orange-800 transition disabled:opacity-50"
                   >
                     <Icon size={12} />
                     <span>{chip.label}</span>
