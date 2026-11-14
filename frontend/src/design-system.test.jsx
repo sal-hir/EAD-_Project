@@ -8,6 +8,7 @@ import { PortalLayout, TopNavbar, navigationFor } from './layouts/SharedLayouts'
 let role = 'CUSTOMER';
 const logout = vi.fn();
 vi.mock('./context/AuthContext', () => ({ useAuth: () => ({ user: { name: 'Test user', role }, isAuthenticated: true, logout }) }));
+vi.mock('./context/NotificationCenterContext', () => ({ useNotificationCenter: () => ({ notifications: [], unreadCount: 0, markAsRead: vi.fn(), markAllAsRead: vi.fn(), clearAll: vi.fn() }) }));
 afterEach(() => { cleanup(); vi.clearAllMocks(); });
 
 describe('shared design foundation', () => {
@@ -16,6 +17,8 @@ describe('shared design foundation', () => {
     render(<MemoryRouter><PortalLayout><h1>Portal content</h1></PortalLayout></MemoryRouter>);
     expect(screen.getByRole('main').textContent).toContain('Portal content');
     expect(screen.queryAllByRole('link', { name: 'User accounts' }).length).toBe(current === 'ADMIN' ? 1 : 0);
+    expect(screen.queryAllByRole('link', { name: 'API credentials', exact: true }).length).toBe(current === 'MERCHANT' ? 1 : 0);
+    expect(screen.queryAllByRole('link', { name: 'OAuth clients', exact: true }).length).toBe(current === 'MERCHANT' ? 1 : 0);
   });
   it('does not invent navigation for an unknown role', () => { expect(navigationFor('UNKNOWN')).toEqual([]); });
   it('opens the drawer, traps keyboard focus and restores focus when closed', () => {

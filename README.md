@@ -8,6 +8,19 @@ workflows are implemented. Parcel, courier, delivery orders and notification eve
 remain future work; their UI routes retain explicit coming-soon states.
 Original dashboard components are preserved for the next migration.
 
+Approved merchants can now generate/revoke API keys at `/merchant/credentials`.
+ADMIN can inspect/revoke keys from the merchant review page. Full keys are shown
+only once; machine requests authenticate through `X-API-Key` on Merchant Service.
+See [API key endpoints, security and Member 5 integration](docs/merchant-api-keys.md).
+OAuth client credentials are also available at `/merchant/oauth-clients`: create,
+rotate/revoke clients and request short-lived, scoped machine tokens from Merchant
+Service. See [OAuth flow and Members 1/5 contract](docs/merchant-oauth.md).
+Actual Merchant Orders integration remains pending.
+
+Member 4's [Kubernetes ConfigMap/Secret templates and setup guide](infrastructure/kubernetes/README.md)
+are prepared for Auth/Merchant. They contain no real credentials; live Kubernetes
+rollout depends on the team's workload and Ingress setup.
+
 ## Run with Docker Compose (recommended)
 
 Install Docker with its Linux engine running. From the repository root:
@@ -21,6 +34,11 @@ docker compose up --build
 ```
 
 Open http://localhost:3000. The API listens at http://localhost:4000.
+Merchant Service is included in Compose at http://localhost:4001. Set a separate
+random `MERCHANT_SERVICE_TOKEN` of at least 32 characters in `.env`; Compose passes
+it to both services for approval role synchronization. Merchant database settings
+default to Auth's connection while using the separate `merchant` schema. See
+[Merchant Docker setup and acceptance checks](backend/merchant-service/README.md).
 Register a customer account; no demo accounts or default passwords are seeded.
 Check health at http://localhost:4000/actuator/health/readiness.
 Compose connects to Neon without starting a local PostgreSQL container. Auth owns

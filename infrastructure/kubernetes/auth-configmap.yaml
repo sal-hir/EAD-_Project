@@ -2,12 +2,23 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: auth-config
+  labels:
+    app.kubernetes.io/part-of: swiftdrop
+    app.kubernetes.io/component: authentication
 data:
+  PORT: "4000"
   AUTH_DB_URL: jdbc:postgresql://YOUR-ENDPOINT-pooler.us-east-2.aws.neon.tech/neondb?sslmode=require&channelBinding=require
   AUTH_MIGRATION_DB_URL: jdbc:postgresql://YOUR-ENDPOINT.us-east-2.aws.neon.tech/neondb?sslmode=require&channelBinding=require
   AUTH_DB_USER: neondb_owner
+  AUTH_DB_POOL_SIZE: "5"
   FRONTEND_URL: https://app.swiftdrop.example
   GOOGLE_REDIRECT_URI: https://api.swiftdrop.example/login/oauth2/code/google
   COOKIE_SECURE: "true"
   JWT_ISSUER: swiftdrop-auth
   JWT_TTL_SECONDS: "900"
+  # Optional password-recovery SMTP. Fill these when enabling recovery email.
+  MAIL_HOST: ""
+  MAIL_PORT: "587"
+  MAIL_FROM: ""
+  MAIL_SMTP_AUTH: "true"
+  MAIL_SMTP_STARTTLS: "true"

@@ -1,0 +1,19 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: merchant-config
+  labels:
+    app.kubernetes.io/part-of: swiftdrop
+    app.kubernetes.io/component: merchant
+data:
+  MERCHANT_PORT: "4001"
+  MERCHANT_DB_URL: "jdbc:postgresql://YOUR-ENDPOINT-pooler.us-east-2.aws.neon.tech/neondb?sslmode=require&channelBinding=require"
+  MERCHANT_MIGRATION_DB_URL: "jdbc:postgresql://YOUR-ENDPOINT.us-east-2.aws.neon.tech/neondb?sslmode=require&channelBinding=require"
+  MERCHANT_DB_USER: "neondb_owner"
+  MERCHANT_DB_POOL_SIZE: "3"
+  FRONTEND_URL: "https://app.swiftdrop.example"
+  # Local/demo cluster: existing ClusterIP Auth Service uses plain HTTP.
+  # For deployed HTTPS communication, set its real HTTPS URL and the flag false.
+  AUTH_SERVICE_URL: "http://auth-service:4000"
+  AUTH_ALLOW_DOCKER_HTTP: "true"
+  MERCHANT_OAUTH_TOKEN_TTL_SECONDS: "900"

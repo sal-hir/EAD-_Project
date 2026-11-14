@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { merchantApi, authError } from '../api/client';
 import { BusinessSummary } from './MerchantOnboarding';
 import { PageHeader, Input, Select, Textarea, Button, DataTable, SearchFilterBar, Pagination, LoadingSkeleton, ErrorState, Toast } from '../components/ui';
@@ -39,6 +40,8 @@ export const AdminMerchants = () => {
     <Pagination page={result.page} pages={result.pages} disabled={busy} onPageChange={page => run(() => load(page, status, search))} />
     {selected && <article className="bg-white border rounded-xl p-5 space-y-4"><h2 className="text-xl font-semibold">Review {selected.business.businessName}</h2>
       <p>Status: <StatusBadge status={selected.status} /></p><BusinessSummary business={selected.business} />
+      <Link to={`/admin/merchants/${selected.id}/credentials`} className="block text-blue-700">Manage API keys</Link>
+      <Link to={`/admin/merchants/${selected.id}/oauth-clients`} className="block text-blue-700">Manage OAuth clients</Link>
       {selected.rejectionReason && <p>Rejection reason: {selected.rejectionReason}</p>}
       {selected.status === 'APPROVING' && <p role="status">Approval is waiting for account permissions to update. Check service availability and retry approval.</p>}
       {['PENDING', 'APPROVING'].includes(selected.status) && <div className="flex gap-4">
