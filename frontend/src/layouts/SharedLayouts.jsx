@@ -5,6 +5,7 @@ import { useAuth } from '../context/AuthContext';
 import { Button, Modal } from '../components/ui';
 import { PublicFooter, publicLinks } from '../components/PublicWebsite';
 import { NotificationBellDropdown } from '../components/NotificationBellDropdown';
+import { AiChatDrawer } from '../components/AiChatDrawer';
 
 export const roleLabels = { CUSTOMER: 'Customer', MERCHANT: 'Merchant', COURIER: 'Courier', DISPATCHER: 'Dispatcher', ADMIN: 'Admin' };
 const dashboards = { CUSTOMER: '/customer', MERCHANT: '/merchant', COURIER: '/courier', DISPATCHER: '/admin', ADMIN: '/admin' };
@@ -80,14 +81,14 @@ export function Breadcrumbs() {
 }
 const SkipLink = () => <a href="#main-content" className="sr-only focus:not-sr-only focus:fixed focus:left-3 focus:top-3 focus:z-[110] focus:rounded-lg focus:bg-white focus:p-3 focus:text-[#F95716] focus:shadow-lg">Skip to content</a>;
 export function PublicLayout({ children }) {
-  return <div className="min-h-dvh bg-[#FBF9F4] text-slate-900"><SkipLink /><TopNavbar /><main id="main-content" tabIndex={-1}>{children}</main><PublicFooter /></div>;
+  return <div className="min-h-dvh bg-[#FBF9F4] text-slate-900"><SkipLink /><TopNavbar /><main id="main-content" tabIndex={-1}>{children}</main><PublicFooter /><AiChatDrawer /></div>;
 }
 export function AuthLayout({ children }) {
   return <PublicLayout><div className="auth-content mx-auto w-full max-w-5xl px-4 py-1 sm:px-6">{children}</div></PublicLayout>;
 }
 export function PortalLayout({ children }) {
   const { user } = useAuth();
-  return <div className="min-h-dvh bg-[#FBF9F4] text-slate-900"><SkipLink /><Sidebar role={user?.role} /><div className="min-w-0 lg:pl-64"><TopNavbar portal /><Breadcrumbs /><main id="main-content" tabIndex={-1} className="portal-content mx-auto w-full max-w-screen-2xl pb-10">{children}</main></div></div>;
+  return <div className="min-h-dvh bg-[#FBF9F4] text-slate-900"><SkipLink /><Sidebar role={user?.role} /><div className="min-w-0 lg:pl-64"><TopNavbar portal /><Breadcrumbs /><main id="main-content" tabIndex={-1} className="portal-content mx-auto w-full max-w-screen-2xl pb-10">{children}</main></div><AiChatDrawer /></div>;
 }
 // Named portal boundaries share one shell and derive navigation from AuthContext.
 export const CustomerLayout = PortalLayout;
