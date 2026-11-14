@@ -22,8 +22,9 @@ public class OrderService {
     private final JdbcTemplate db;
     private final ApplicationRepository applications;
     private final ObjectMapper json;
-    public OrderService(JdbcTemplate db, ApplicationRepository applications, ObjectMapper json) {
-        this.db=db; this.applications=applications; this.json=json;
+    private final WebhookService hooks;
+    public OrderService(JdbcTemplate db, ApplicationRepository applications, ObjectMapper json,WebhookService hooks) {
+        this.db=db; this.applications=applications; this.json=json;this.hooks=hooks;
     }
     // Serializes duplicate submissions across replicas using the existing business row.
     @Transactional
@@ -45,6 +46,7 @@ public class OrderService {
         UUID id=UUID.randomUUID(); Instant now=Instant.now();
         db.update("insert into merchant.orders(id,merchant_id,merchant_order_id,idempotency_key,request_json,request_hash,status,created_at) values(?,?,?,?,?,?,'PENDING_BOOKING',?)",
             id,merchant,request.merchantOrderId(),key,payload,digest,Timestamp.from(now));
+        hooks.enqueue(merchant,"order:"+id+":accepted","merchant.order.accepted",Map.of("orderId",id,"merchantOrderId",request.merchantOrderId(),"status","PENDING_BOOKING"));
         return new Created(new Order(id,merchant,request.merchantOrderId(),"PENDING_BOOKING",null,null,now,request),false);
     }
     public Order get(UUID merchant, UUID id) {

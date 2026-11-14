@@ -1,8 +1,11 @@
 # Member 4: Kubernetes ConfigMaps and Secrets
 
-This prepares Auth/Merchant configuration and credential templates. It does not
-deploy a cluster, publish images, create Member 5's Merchant Deployment/Service,
-or implement Member 10's Ingress/Helm release. Docker Compose is independent.
+This prepares Auth/Merchant configuration and credential templates. Member 5's
+`merchant-deployment.yaml` now supplies the Merchant Deployment/ClusterIP Service,
+with two replicas, probes and resource requests/limits. It also requires the private
+`merchant-webhook-secrets` Secret from its new example template. See
+[Member 5 deployment and webhook setup](../../docs/merchant-webhooks.md).
+No cluster rollout, registry publication or Member 10 Ingress/Helm release is performed.
 
 ## Files and ownership
 

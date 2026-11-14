@@ -18,6 +18,12 @@ public class IdentityFilter extends OncePerRequestFilter {
     private final IdentityGateway identities;private final ObjectMapper mapper;private final ApiKeyService keys;private final OAuthClientService oauth;
     public IdentityFilter(IdentityGateway identities,ObjectMapper mapper,ApiKeyService keys,OAuthClientService oauth){this.identities=identities;this.mapper=mapper;this.keys=keys;this.oauth=oauth;}
     @Override protected void doFilterInternal(HttpServletRequest request,HttpServletResponse response,FilterChain chain)throws ServletException,IOException{
+        if(request.getRequestURI().startsWith("/api/v1/merchants/operations/")) {
+            response.setHeader("Cache-Control","no-store");
+            if(!"OPTIONS".equals(request.getMethod()) && (java.util.Collections.list(request.getHeaders("Authorization")).size()!=1 || request.getHeader("X-API-Key")!=null)) {
+                ApiErrors.write(mapper,response,401,"A single browser Bearer token is required");return;
+            }
+        }
         if(request.getRequestURI().startsWith("/actuator/health")||"OPTIONS".equals(request.getMethod())){chain.doFilter(request,response);return;}
         if("/api/v1/oauth/token".equals(request.getRequestURI())&&"POST".equals(request.getMethod())){chain.doFilter(request,response);return;}
         if(request.getRequestURI().equals("/api/v1/merchant/orders") || request.getRequestURI().startsWith("/api/v1/merchant/orders/")) {

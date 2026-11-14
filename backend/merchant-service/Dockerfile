@@ -1,8 +1,11 @@
 FROM maven:3.9-eclipse-temurin-21 AS build
 WORKDIR /build
-COPY pom.xml .
+COPY backend/merchant-service/pom.xml .
 RUN mvn -B -ntp dependency:go-offline
-COPY src ./src
+COPY backend/merchant-service/src ./src
+# Contract tests read repository documentation during packaging.
+COPY docs /docs
+COPY infrastructure/kubernetes /infrastructure/kubernetes
 RUN mvn -B -ntp package
 
 FROM eclipse-temurin:21-jre-alpine

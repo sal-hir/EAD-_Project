@@ -24,7 +24,9 @@ services:
     restart: unless-stopped
 
   merchant-service:
-    build: ./backend/merchant-service
+    build:
+      context: .
+      dockerfile: backend/merchant-service/Dockerfile
     environment:
       MERCHANT_PORT: 4001
       MERCHANT_DB_URL: ${MERCHANT_DB_URL:-${AUTH_DB_URL}}
@@ -34,6 +36,8 @@ services:
       AUTH_SERVICE_URL: http://auth-service:4000
       AUTH_ALLOW_DOCKER_HTTP: "true"
       MERCHANT_OAUTH_TOKEN_TTL_SECONDS: ${MERCHANT_OAUTH_TOKEN_TTL_SECONDS:-900}
+      WEBHOOK_ENCRYPTION_KEY: ${WEBHOOK_ENCRYPTION_KEY:-}
+      WEBHOOK_WORKER_ENABLED: ${WEBHOOK_WORKER_ENABLED:-true}
       MERCHANT_SERVICE_TOKEN: ${MERCHANT_SERVICE_TOKEN:?Set a random MERCHANT_SERVICE_TOKEN of at least 32 characters}
       FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3000}
     ports:

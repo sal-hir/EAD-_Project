@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { merchantApi, authError } from '../api/client';
 import { PageHeader, Input, Textarea, Button, LoadingSkeleton, EmptyState, ErrorState } from '../components/ui';
 import { StatusBadge } from '../components/StatusBadge';
+import { MerchantOperations } from './merchant/MerchantOperations';
 
 export const businessFields = [
   ['businessName', 'Registered business name', true, 120], ['tradingName', 'Trading name', false, 120],
@@ -83,7 +84,7 @@ export const MerchantStatus = ({ dashboard = false }) => {
           try { setApplication((await merchantApi.post('/merchants/applications/me/resubmit', { version: application.version })).data.data); }
           catch (e) { setError(authError(e, 'Could not resubmit application')); } finally { setBusy(false); }
         }}>Resubmit application</button>}
-        {dashboard && application.status === 'APPROVED' && <div className="space-y-3"><Link to="/merchant/credentials" className="ui-button ui-button-primary">Manage API credentials</Link><p role="status" className="bg-blue-50 rounded-lg p-4">Delivery order APIs are coming soon.</p></div>}
+        {dashboard && application.status === 'APPROVED' && <div className="space-y-3"><Link to="/merchant/credentials" className="ui-button ui-button-primary">Manage API credentials</Link><MerchantOperations /></div>}
       </div>}
     {!loading && application && <button onClick={load} className="text-blue-700">Refresh status</button>}
   </section>;

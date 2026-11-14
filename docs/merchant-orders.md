@@ -242,5 +242,7 @@ OpenAPI docs, plus an isolated mock booking server and candidate adapter tests.
 
 Pending: external team agreement, Member 2 booking integration, authoritative parcel
 and tracking mapping, live tracking/status integration, full Merchant → Auth → Parcel
-demo. Webhook dashboard/dispatcher and Kubernetes workloads from the broader Member 5
-assignment are also pending. Git push and PR publication have not been performed.
+demo. The broader Member 5 dashboard, webhook dispatcher/HMAC/retries/logs/tester
+and Kubernetes workload manifests are now implemented; see
+[webhook and dashboard setup](merchant-webhooks.md). Live receiver delivery and
+cluster rollout require configuration. Git push and PR publication are separate.

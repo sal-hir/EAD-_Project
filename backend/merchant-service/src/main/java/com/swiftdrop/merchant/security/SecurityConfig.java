@@ -26,7 +26,8 @@ public class SecurityConfig {
                 .requestMatchers(org.springframework.http.HttpMethod.POST,"/api/v1/oauth/token").permitAll()
                 .requestMatchers("/api/v1/merchant/orders","/api/v1/merchant/orders/**").hasRole("MERCHANT_ORDERS")
                 .requestMatchers("/api/v1/merchant-api/oauth/**").hasRole("MERCHANT_OAUTH")
-                .requestMatchers("/api/v1/merchants/admin/**").hasRole("ADMIN").anyRequest().authenticated())
+                .requestMatchers("/api/v1/merchants/admin/**").hasRole("ADMIN")
+                .requestMatchers("/api/v1/merchants/operations/**").hasRole("MERCHANT").anyRequest().authenticated())
             .exceptionHandling(e->e.authenticationEntryPoint((req,res,ex)->ApiErrors.write(mapper,res,401,"Authentication required")).accessDeniedHandler((req,res,ex)->ApiErrors.write(mapper,res,403,"Access denied"))).build();
     }
 }

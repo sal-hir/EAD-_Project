@@ -1,5 +1,10 @@
 # Merchant Service: local Docker and Phase 1 verification
 
+Member 5 dashboard, webhook settings, signed delivery/retries, logs/tester and
+Kubernetes workloads are now implemented. See [setup and API guide](../../docs/merchant-webhooks.md).
+Configure the stable private WEBHOOK_ENCRYPTION_KEY before enabling webhooks.
+Docker builds now use the repository root context so contract tests can read docs.
+
 Member 5 order intake is now available at `/api/v1/merchant/orders`, reusing API-key
 and OAuth machine authentication. Orders remain `PENDING_BOOKING` until Member 2
 booking integration is implemented. See [Orders API and handoff](../../docs/merchant-orders.md),
