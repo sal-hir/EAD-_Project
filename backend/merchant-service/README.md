@@ -1,5 +1,11 @@
 # Merchant Service: local Docker and Phase 1 verification
 
+Member 5 order intake is now available at `/api/v1/merchant/orders`, reusing API-key
+and OAuth machine authentication. Orders remain `PENDING_BOOKING` until Member 2
+booking integration is implemented. See [Orders API and handoff](../../docs/merchant-orders.md),
+[OpenAPI](../../docs/openapi/merchant-orders.yaml) and
+[Postman collection](../../docs/postman/merchant-orders.postman_collection.json).
+
 From the repository root, configure the ignored `.env` with the Neon Auth database
 connection and `JWT_SECRET`. Set `MERCHANT_SERVICE_TOKEN` to a separate random
 secret of at least 32 characters. Compose passes the same token to Auth and

@@ -1,0 +1,193 @@
+﻿{
+    "variable":  [
+                     {
+                         "key":  "baseUrl",
+                         "value":  "http://localhost:4001"
+                     },
+                     {
+                         "key":  "apiKey",
+                         "value":  ""
+                     },
+                     {
+                         "key":  "accessToken",
+                         "value":  ""
+                     },
+                     {
+                         "key":  "orderId",
+                         "value":  ""
+                     },
+                     {
+                         "key":  "merchantOrderId",
+                         "value":  "SHOP-123"
+                     },
+                     {
+                         "key":  "idempotencyKey",
+                         "value":  "checkout-123"
+                     }
+                 ],
+    "info":  {
+                 "description":  "Intake only: PENDING_BOOKING. Set credentials privately. OAuth create needs orders:write; GET needs merchant:read. Use one authentication folder. Repeat unchanged Create to test replay; change both order reference and key for a new order.",
+                 "name":  "SwiftDrop Member 5 Merchant Orders",
+                 "schema":  "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+             },
+    "item":  [
+                 {
+                     "name":  "API key",
+                     "item":  [
+                                  {
+                                      "request":  {
+                                                      "body":  {
+                                                                   "raw":  "{\r\n    \"merchantOrderId\":  \"{{merchantOrderId}}\",\r\n    \"pickup\":  {\r\n                   \"district\":  \"Colombo\",\r\n                   \"name\":  \"Shop\",\r\n                   \"phone\":  \"+94771234567\",\r\n                   \"address\":  \"1 Main Road\"\r\n               },\r\n    \"recipient\":  {\r\n                      \"district\":  \"Galle\",\r\n                      \"name\":  \"Customer\",\r\n                      \"phone\":  \"+94771234568\",\r\n                      \"address\":  \"2 Lake Road\"\r\n                  },\r\n    \"parcel\":  {\r\n                   \"heightCm\":  10,\r\n                   \"description\":  \"Books\",\r\n                   \"weightKg\":  1.5,\r\n                   \"lengthCm\":  20,\r\n                   \"widthCm\":  15\r\n               },\r\n    \"serviceType\":  \"STANDARD\"\r\n}",
+                                                                   "options":  {
+                                                                                   "raw":  {
+                                                                                               "language":  "json"
+                                                                                           }
+                                                                               },
+                                                                   "mode":  "raw"
+                                                               },
+                                                      "method":  "POST",
+                                                      "url":  "{{baseUrl}}/api/v1/merchant/orders",
+                                                      "header":  [
+                                                                     {
+                                                                         "key":  "Content-Type",
+                                                                         "value":  "application/json"
+                                                                     },
+                                                                     {
+                                                                         "key":  "Idempotency-Key",
+                                                                         "value":  "{{idempotencyKey}}"
+                                                                     }
+                                                                 ]
+                                                  },
+                                      "name":  "Create or replay order",
+                                      "event":  [
+                                                    {
+                                                        "script":  {
+                                                                       "exec":  [
+                                                                                    "pm.test(\"Accepted or replayed\", () =\u003e pm.expect(pm.response.code).to.be.oneOf([202, 200]));",
+                                                                                    "if ([200, 202].includes(pm.response.code)) { pm.collectionVariables.set(\"orderId\", pm.response.json().data.id); pm.test(\"Pending booking\", () =\u003e pm.expect(pm.response.json().data.status).to.eql(\"PENDING_BOOKING\")); }"
+                                                                                ],
+                                                                       "type":  "text/javascript"
+                                                                   },
+                                                        "listen":  "test"
+                                                    }
+                                                ]
+                                  },
+                                  {
+                                      "name":  "List orders",
+                                      "request":  {
+                                                      "method":  "GET",
+                                                      "url":  "{{baseUrl}}/api/v1/merchant/orders?page=0\u0026size=20"
+                                                  }
+                                  },
+                                  {
+                                      "name":  "Order details",
+                                      "request":  {
+                                                      "method":  "GET",
+                                                      "url":  "{{baseUrl}}/api/v1/merchant/orders/{{orderId}}"
+                                                  }
+                                  },
+                                  {
+                                      "name":  "Tracking availability",
+                                      "request":  {
+                                                      "method":  "GET",
+                                                      "url":  "{{baseUrl}}/api/v1/merchant/orders/{{orderId}}/tracking"
+                                                  }
+                                  }
+                              ],
+                     "auth":  {
+                                  "type":  "apikey",
+                                  "apikey":  [
+                                                 {
+                                                     "key":  "key",
+                                                     "type":  "string",
+                                                     "value":  "X-API-Key"
+                                                 },
+                                                 {
+                                                     "key":  "value",
+                                                     "type":  "string",
+                                                     "value":  "{{apiKey}}"
+                                                 },
+                                                 {
+                                                     "key":  "in",
+                                                     "type":  "string",
+                                                     "value":  "header"
+                                                 }
+                                             ]
+                              }
+                 },
+                 {
+                     "name":  "OAuth",
+                     "item":  [
+                                  {
+                                      "request":  {
+                                                      "body":  {
+                                                                   "raw":  "{\r\n    \"merchantOrderId\":  \"{{merchantOrderId}}\",\r\n    \"pickup\":  {\r\n                   \"district\":  \"Colombo\",\r\n                   \"name\":  \"Shop\",\r\n                   \"phone\":  \"+94771234567\",\r\n                   \"address\":  \"1 Main Road\"\r\n               },\r\n    \"recipient\":  {\r\n                      \"district\":  \"Galle\",\r\n                      \"name\":  \"Customer\",\r\n                      \"phone\":  \"+94771234568\",\r\n                      \"address\":  \"2 Lake Road\"\r\n                  },\r\n    \"parcel\":  {\r\n                   \"heightCm\":  10,\r\n                   \"description\":  \"Books\",\r\n                   \"weightKg\":  1.5,\r\n                   \"lengthCm\":  20,\r\n                   \"widthCm\":  15\r\n               },\r\n    \"serviceType\":  \"STANDARD\"\r\n}",
+                                                                   "options":  {
+                                                                                   "raw":  {
+                                                                                               "language":  "json"
+                                                                                           }
+                                                                               },
+                                                                   "mode":  "raw"
+                                                               },
+                                                      "method":  "POST",
+                                                      "url":  "{{baseUrl}}/api/v1/merchant/orders",
+                                                      "header":  [
+                                                                     {
+                                                                         "key":  "Content-Type",
+                                                                         "value":  "application/json"
+                                                                     },
+                                                                     {
+                                                                         "key":  "Idempotency-Key",
+                                                                         "value":  "{{idempotencyKey}}"
+                                                                     }
+                                                                 ]
+                                                  },
+                                      "name":  "Create or replay order",
+                                      "event":  [
+                                                    {
+                                                        "script":  {
+                                                                       "exec":  [
+                                                                                    "pm.test(\"Accepted or replayed\", () =\u003e pm.expect(pm.response.code).to.be.oneOf([202, 200]));",
+                                                                                    "if ([200, 202].includes(pm.response.code)) { pm.collectionVariables.set(\"orderId\", pm.response.json().data.id); pm.test(\"Pending booking\", () =\u003e pm.expect(pm.response.json().data.status).to.eql(\"PENDING_BOOKING\")); }"
+                                                                                ],
+                                                                       "type":  "text/javascript"
+                                                                   },
+                                                        "listen":  "test"
+                                                    }
+                                                ]
+                                  },
+                                  {
+                                      "name":  "List orders",
+                                      "request":  {
+                                                      "method":  "GET",
+                                                      "url":  "{{baseUrl}}/api/v1/merchant/orders?page=0\u0026size=20"
+                                                  }
+                                  },
+                                  {
+                                      "name":  "Order details",
+                                      "request":  {
+                                                      "method":  "GET",
+                                                      "url":  "{{baseUrl}}/api/v1/merchant/orders/{{orderId}}"
+                                                  }
+                                  },
+                                  {
+                                      "name":  "Tracking availability",
+                                      "request":  {
+                                                      "method":  "GET",
+                                                      "url":  "{{baseUrl}}/api/v1/merchant/orders/{{orderId}}/tracking"
+                                                  }
+                                  }
+                              ],
+                     "auth":  {
+                                  "bearer":  [
+                                                 {
+                                                     "key":  "token",
+                                                     "type":  "string",
+                                                     "value":  "{{accessToken}}"
+                                                 }
+                                             ],
+                                  "type":  "bearer"
+                              }
+                 }
+             ]
+}

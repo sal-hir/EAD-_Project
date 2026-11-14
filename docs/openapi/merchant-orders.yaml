@@ -1,0 +1,204 @@
+openapi: 3.0.3
+info:
+  title: SwiftDrop Merchant Order Intake
+  version: 0.1.0
+  description: Orders remain PENDING_BOOKING until Member 2 integration is implemented. No parcel or tracking ID is created yet.
+servers:
+  - url: http://localhost:4001
+security:
+  - ApiKey: []
+  - MachineBearer: []
+paths:
+  /api/v1/merchant/orders:
+    post:
+      operationId: createMerchantOrder
+      summary: Accept order intake (OAuth requires orders:write)
+      parameters:
+        - in: header
+          name: Idempotency-Key
+          required: true
+          schema: {type: string, pattern: '^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$'}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/CreateOrder'}
+      responses:
+        '202':
+          description: Accepted and persisted; no booking yet
+          headers:
+            Location: {schema: {type: string}, description: Order resource path}
+            Idempotency-Replayed: {schema: {type: boolean}}
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/OrderEnvelope'}
+        '200':
+          description: Identical retry returns original order
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/OrderEnvelope'}
+        '400': {$ref: '#/components/responses/Invalid'}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '503': {$ref: '#/components/responses/Unavailable'}
+    get:
+      operationId: listMerchantOrders
+      summary: List owned orders (OAuth requires merchant:read)
+      parameters:
+        - in: query
+          name: page
+          schema: {type: integer, minimum: 0, maximum: 1000000, default: 0}
+        - in: query
+          name: size
+          schema: {type: integer, minimum: 1, maximum: 100, default: 20}
+      responses:
+        '200':
+          description: Owned orders, newest first
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: {type: boolean, enum: [true]}
+                  data:
+                    type: object
+                    properties:
+                      orders: {type: array, items: {$ref: '#/components/schemas/Order'}}
+                      page: {type: integer}
+                      size: {type: integer}
+                      total: {type: integer, format: int64}
+        '400': {$ref: '#/components/responses/Invalid'}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '503': {$ref: '#/components/responses/Unavailable'}
+  /api/v1/merchant/orders/{id}:
+    parameters:
+      - {$ref: '#/components/parameters/OrderId'}
+    get:
+      operationId: getMerchantOrder
+      summary: Read owned order (OAuth requires merchant:read)
+      responses:
+        '200':
+          description: Owned order
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/OrderEnvelope'}
+        '400': {$ref: '#/components/responses/Invalid'}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/Missing'}
+        '503': {$ref: '#/components/responses/Unavailable'}
+  /api/v1/merchant/orders/{id}/tracking:
+    parameters:
+      - {$ref: '#/components/parameters/OrderId'}
+    get:
+      operationId: getMerchantOrderTracking
+      summary: Read booking availability (OAuth requires merchant:read)
+      responses:
+        '200':
+          description: Pending booking; no live delivery tracking yet
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: {type: boolean, enum: [true]}
+                  data:
+                    type: object
+                    properties:
+                      orderId: {type: string, format: uuid}
+                      merchantOrderId: {type: string}
+                      status: {type: string, enum: [PENDING_BOOKING]}
+                      parcelId: {type: string, format: uuid, nullable: true}
+                      trackingNumber: {type: string, nullable: true}
+                      message: {type: string}
+        '400': {$ref: '#/components/responses/Invalid'}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/Missing'}
+        '503': {$ref: '#/components/responses/Unavailable'}
+components:
+  securitySchemes:
+    ApiKey: {type: apiKey, in: header, name: X-API-Key}
+    MachineBearer: {type: http, scheme: bearer, bearerFormat: Opaque Merchant OAuth token}
+  parameters:
+    OrderId:
+      in: path
+      name: id
+      required: true
+      schema: {type: string, format: uuid}
+  schemas:
+    Contact:
+      type: object
+      additionalProperties: false
+      required: [name, phone, address, district]
+      properties:
+        name: {type: string, minLength: 1, maxLength: 120}
+        phone: {type: string, pattern: '^[+0-9() -]{7,30}$'}
+        address: {type: string, minLength: 1, maxLength: 500}
+        district: {type: string, minLength: 1, maxLength: 120}
+    Parcel:
+      type: object
+      additionalProperties: false
+      required: [description, weightKg, lengthCm, widthCm, heightCm]
+      properties:
+        description: {type: string, minLength: 1, maxLength: 500}
+        weightKg: {type: number, minimum: 0.001, maximum: 1000, multipleOf: 0.001}
+        lengthCm: {type: number, minimum: 0.1, maximum: 500, multipleOf: 0.1}
+        widthCm: {type: number, minimum: 0.1, maximum: 500, multipleOf: 0.1}
+        heightCm: {type: number, minimum: 0.1, maximum: 500, multipleOf: 0.1}
+    CreateOrder:
+      type: object
+      additionalProperties: false
+      required: [merchantOrderId, pickup, recipient, parcel, serviceType]
+      properties:
+        merchantOrderId: {type: string, pattern: '^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$'}
+        pickup: {$ref: '#/components/schemas/Contact'}
+        recipient: {$ref: '#/components/schemas/Contact'}
+        parcel: {$ref: '#/components/schemas/Parcel'}
+        serviceType: {type: string, enum: [STANDARD, EXPRESS]}
+        notes: {type: string, maxLength: 1000, nullable: true}
+    Order:
+      type: object
+      properties:
+        id: {type: string, format: uuid}
+        merchantId: {type: string, format: uuid}
+        merchantOrderId: {type: string}
+        status: {type: string, enum: [PENDING_BOOKING]}
+        parcelId: {type: string, format: uuid, nullable: true}
+        trackingNumber: {type: string, nullable: true}
+        createdAt: {type: string, format: date-time}
+        request: {$ref: '#/components/schemas/CreateOrder'}
+    OrderEnvelope:
+      type: object
+      properties:
+        success: {type: boolean, enum: [true]}
+        data: {$ref: '#/components/schemas/Order'}
+    Error:
+      type: object
+      properties:
+        success: {type: boolean, enum: [false]}
+        status: {type: integer}
+        message: {type: string}
+        errors: {type: object, additionalProperties: {type: string}}
+        timestamp: {type: string, format: date-time}
+  responses:
+    Invalid:
+      description: Invalid request or idempotency key
+      content: {application/json: {schema: {$ref: '#/components/schemas/Error'}}}
+    Unauthenticated:
+      description: Invalid, mixed, expired or revoked credentials
+      content: {application/json: {schema: {$ref: '#/components/schemas/Error'}}}
+    Forbidden:
+      description: OAuth scope insufficient
+      content: {application/json: {schema: {$ref: '#/components/schemas/Error'}}}
+    Missing:
+      description: No owned order at this ID
+      content: {application/json: {schema: {$ref: '#/components/schemas/Error'}}}
+    Conflict:
+      description: Order reference or idempotency key conflict
+      content: {application/json: {schema: {$ref: '#/components/schemas/Error'}}}
+    Unavailable:
+      description: Authentication unavailable
+      content: {application/json: {schema: {$ref: '#/components/schemas/Error'}}}

@@ -15,7 +15,9 @@ See [API key endpoints, security and Member 5 integration](docs/merchant-api-key
 OAuth client credentials are also available at `/merchant/oauth-clients`: create,
 rotate/revoke clients and request short-lived, scoped machine tokens from Merchant
 Service. See [OAuth flow and Members 1/5 contract](docs/merchant-oauth.md).
-Actual Merchant Orders integration remains pending.
+Member 5 authenticated order intake is available at `/api/v1/merchant/orders`.
+Orders remain `PENDING_BOOKING`; actual parcel creation and live tracking await
+Member 2 integration. See [Orders API, Postman/OpenAPI and handoff](docs/merchant-orders.md).
 
 Member 4's [Kubernetes ConfigMap/Secret templates and setup guide](infrastructure/kubernetes/README.md)
 are prepared for Auth/Merchant. They contain no real credentials; live Kubernetes
