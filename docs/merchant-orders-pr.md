@@ -13,7 +13,17 @@ checkout, so this change does not create parcels or tracking numbers. The tracki
 endpoint reports that limitation. docs/merchant-orders.md records the handoff contract
 and pending integration work. Includes Flyway V4, OpenAPI and Postman artifacts.
 
-Validation: Merchant Maven suite passed 52 tests, including 7 new Orders tests for
-API-key/OAuth lifecycles, expiry/revocation, scope enforcement, ownership isolation,
-payload validation, idempotency conflicts and concurrent retries. Tests use isolated
-H2 data and fake Auth identities; no live Parcel/Neon end-to-end run was performed.
+Tracking responses include availability, stable update time and an order-acceptance
+event. Duplicate JSON properties/headers, invalid contact data and unsupported
+method/media types return consistent errors. The final v1 intake contract documents
+existing API-key/OAuth behavior; it does not claim external Member 2 agreement.
+
+A candidate booking adapter and a test-only loopback HTTP mock cover the proposed
+Member 2 handoff. The adapter is not wired into production Orders; mock parcel IDs
+never enter real order storage. Production orders remain PENDING_BOOKING.
+
+Validation: Merchant Maven suite passed 64 tests, including 14 Orders tests and 5
+HTTP booking gateway tests. All 33 Postman request definitions, including 25 negatives,
+were exercised through MockMvc with isolated H2 and fake Auth identities. OpenAPI
+references, request example and required response fields were verified against the
+API. No live Parcel/Neon end-to-end run or deployment was performed.

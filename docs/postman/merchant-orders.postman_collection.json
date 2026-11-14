@@ -1,193 +1,1217 @@
-﻿{
-    "variable":  [
-                     {
-                         "key":  "baseUrl",
-                         "value":  "http://localhost:4001"
-                     },
-                     {
-                         "key":  "apiKey",
-                         "value":  ""
-                     },
-                     {
-                         "key":  "accessToken",
-                         "value":  ""
-                     },
-                     {
-                         "key":  "orderId",
-                         "value":  ""
-                     },
-                     {
-                         "key":  "merchantOrderId",
-                         "value":  "SHOP-123"
-                     },
-                     {
-                         "key":  "idempotencyKey",
-                         "value":  "checkout-123"
-                     }
-                 ],
-    "info":  {
-                 "description":  "Intake only: PENDING_BOOKING. Set credentials privately. OAuth create needs orders:write; GET needs merchant:read. Use one authentication folder. Repeat unchanged Create to test replay; change both order reference and key for a new order.",
-                 "name":  "SwiftDrop Member 5 Merchant Orders",
-                 "schema":  "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
-             },
-    "item":  [
-                 {
-                     "name":  "API key",
-                     "item":  [
-                                  {
-                                      "request":  {
-                                                      "body":  {
-                                                                   "raw":  "{\r\n    \"merchantOrderId\":  \"{{merchantOrderId}}\",\r\n    \"pickup\":  {\r\n                   \"district\":  \"Colombo\",\r\n                   \"name\":  \"Shop\",\r\n                   \"phone\":  \"+94771234567\",\r\n                   \"address\":  \"1 Main Road\"\r\n               },\r\n    \"recipient\":  {\r\n                      \"district\":  \"Galle\",\r\n                      \"name\":  \"Customer\",\r\n                      \"phone\":  \"+94771234568\",\r\n                      \"address\":  \"2 Lake Road\"\r\n                  },\r\n    \"parcel\":  {\r\n                   \"heightCm\":  10,\r\n                   \"description\":  \"Books\",\r\n                   \"weightKg\":  1.5,\r\n                   \"lengthCm\":  20,\r\n                   \"widthCm\":  15\r\n               },\r\n    \"serviceType\":  \"STANDARD\"\r\n}",
-                                                                   "options":  {
-                                                                                   "raw":  {
-                                                                                               "language":  "json"
-                                                                                           }
-                                                                               },
-                                                                   "mode":  "raw"
-                                                               },
-                                                      "method":  "POST",
-                                                      "url":  "{{baseUrl}}/api/v1/merchant/orders",
-                                                      "header":  [
-                                                                     {
-                                                                         "key":  "Content-Type",
-                                                                         "value":  "application/json"
-                                                                     },
-                                                                     {
-                                                                         "key":  "Idempotency-Key",
-                                                                         "value":  "{{idempotencyKey}}"
-                                                                     }
-                                                                 ]
-                                                  },
-                                      "name":  "Create or replay order",
-                                      "event":  [
-                                                    {
-                                                        "script":  {
-                                                                       "exec":  [
-                                                                                    "pm.test(\"Accepted or replayed\", () =\u003e pm.expect(pm.response.code).to.be.oneOf([202, 200]));",
-                                                                                    "if ([200, 202].includes(pm.response.code)) { pm.collectionVariables.set(\"orderId\", pm.response.json().data.id); pm.test(\"Pending booking\", () =\u003e pm.expect(pm.response.json().data.status).to.eql(\"PENDING_BOOKING\")); }"
-                                                                                ],
-                                                                       "type":  "text/javascript"
-                                                                   },
-                                                        "listen":  "test"
-                                                    }
-                                                ]
-                                  },
-                                  {
-                                      "name":  "List orders",
-                                      "request":  {
-                                                      "method":  "GET",
-                                                      "url":  "{{baseUrl}}/api/v1/merchant/orders?page=0\u0026size=20"
-                                                  }
-                                  },
-                                  {
-                                      "name":  "Order details",
-                                      "request":  {
-                                                      "method":  "GET",
-                                                      "url":  "{{baseUrl}}/api/v1/merchant/orders/{{orderId}}"
-                                                  }
-                                  },
-                                  {
-                                      "name":  "Tracking availability",
-                                      "request":  {
-                                                      "method":  "GET",
-                                                      "url":  "{{baseUrl}}/api/v1/merchant/orders/{{orderId}}/tracking"
-                                                  }
-                                  }
-                              ],
-                     "auth":  {
-                                  "type":  "apikey",
-                                  "apikey":  [
-                                                 {
-                                                     "key":  "key",
-                                                     "type":  "string",
-                                                     "value":  "X-API-Key"
-                                                 },
-                                                 {
-                                                     "key":  "value",
-                                                     "type":  "string",
-                                                     "value":  "{{apiKey}}"
-                                                 },
-                                                 {
-                                                     "key":  "in",
-                                                     "type":  "string",
-                                                     "value":  "header"
-                                                 }
-                                             ]
-                              }
-                 },
-                 {
-                     "name":  "OAuth",
-                     "item":  [
-                                  {
-                                      "request":  {
-                                                      "body":  {
-                                                                   "raw":  "{\r\n    \"merchantOrderId\":  \"{{merchantOrderId}}\",\r\n    \"pickup\":  {\r\n                   \"district\":  \"Colombo\",\r\n                   \"name\":  \"Shop\",\r\n                   \"phone\":  \"+94771234567\",\r\n                   \"address\":  \"1 Main Road\"\r\n               },\r\n    \"recipient\":  {\r\n                      \"district\":  \"Galle\",\r\n                      \"name\":  \"Customer\",\r\n                      \"phone\":  \"+94771234568\",\r\n                      \"address\":  \"2 Lake Road\"\r\n                  },\r\n    \"parcel\":  {\r\n                   \"heightCm\":  10,\r\n                   \"description\":  \"Books\",\r\n                   \"weightKg\":  1.5,\r\n                   \"lengthCm\":  20,\r\n                   \"widthCm\":  15\r\n               },\r\n    \"serviceType\":  \"STANDARD\"\r\n}",
-                                                                   "options":  {
-                                                                                   "raw":  {
-                                                                                               "language":  "json"
-                                                                                           }
-                                                                               },
-                                                                   "mode":  "raw"
-                                                               },
-                                                      "method":  "POST",
-                                                      "url":  "{{baseUrl}}/api/v1/merchant/orders",
-                                                      "header":  [
-                                                                     {
-                                                                         "key":  "Content-Type",
-                                                                         "value":  "application/json"
-                                                                     },
-                                                                     {
-                                                                         "key":  "Idempotency-Key",
-                                                                         "value":  "{{idempotencyKey}}"
-                                                                     }
-                                                                 ]
-                                                  },
-                                      "name":  "Create or replay order",
-                                      "event":  [
-                                                    {
-                                                        "script":  {
-                                                                       "exec":  [
-                                                                                    "pm.test(\"Accepted or replayed\", () =\u003e pm.expect(pm.response.code).to.be.oneOf([202, 200]));",
-                                                                                    "if ([200, 202].includes(pm.response.code)) { pm.collectionVariables.set(\"orderId\", pm.response.json().data.id); pm.test(\"Pending booking\", () =\u003e pm.expect(pm.response.json().data.status).to.eql(\"PENDING_BOOKING\")); }"
-                                                                                ],
-                                                                       "type":  "text/javascript"
-                                                                   },
-                                                        "listen":  "test"
-                                                    }
-                                                ]
-                                  },
-                                  {
-                                      "name":  "List orders",
-                                      "request":  {
-                                                      "method":  "GET",
-                                                      "url":  "{{baseUrl}}/api/v1/merchant/orders?page=0\u0026size=20"
-                                                  }
-                                  },
-                                  {
-                                      "name":  "Order details",
-                                      "request":  {
-                                                      "method":  "GET",
-                                                      "url":  "{{baseUrl}}/api/v1/merchant/orders/{{orderId}}"
-                                                  }
-                                  },
-                                  {
-                                      "name":  "Tracking availability",
-                                      "request":  {
-                                                      "method":  "GET",
-                                                      "url":  "{{baseUrl}}/api/v1/merchant/orders/{{orderId}}/tracking"
-                                                  }
-                                  }
-                              ],
-                     "auth":  {
-                                  "bearer":  [
-                                                 {
-                                                     "key":  "token",
-                                                     "type":  "string",
-                                                     "value":  "{{accessToken}}"
-                                                 }
-                                             ],
-                                  "type":  "bearer"
-                              }
-                 }
-             ]
+{
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:4001"
+    },
+    {
+      "key": "apiKey",
+      "value": ""
+    },
+    {
+      "key": "accessToken",
+      "value": ""
+    },
+    {
+      "key": "orderId",
+      "value": ""
+    },
+    {
+      "key": "merchantOrderId",
+      "value": "SHOP-123"
+    },
+    {
+      "key": "idempotencyKey",
+      "value": "checkout-123"
+    },
+    {
+      "key": "otherApiKey",
+      "value": ""
+    },
+    {
+      "key": "readOnlyAccessToken",
+      "value": ""
+    },
+    {
+      "key": "expiredAccessToken",
+      "value": ""
+    },
+    {
+      "key": "revokedApiKey",
+      "value": ""
+    }
+  ],
+  "info": {
+    "description": "Intake only: PENDING_BOOKING. Set credentials privately. OAuth create needs orders:write; GET needs merchant:read. Use one authentication folder. Repeat unchanged Create to test replay; change both order reference and key for a new order.",
+    "name": "SwiftDrop Member 5 Merchant Orders",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "API key",
+      "item": [
+        {
+          "request": {
+            "body": {
+              "raw": "{\r\n    \"merchantOrderId\":  \"{{merchantOrderId}}\",\r\n    \"pickup\":  {\r\n                   \"district\":  \"Colombo\",\r\n                   \"name\":  \"Shop\",\r\n                   \"phone\":  \"+94771234567\",\r\n                   \"address\":  \"1 Main Road\"\r\n               },\r\n    \"recipient\":  {\r\n                      \"district\":  \"Galle\",\r\n                      \"name\":  \"Customer\",\r\n                      \"phone\":  \"+94771234568\",\r\n                      \"address\":  \"2 Lake Road\"\r\n                  },\r\n    \"parcel\":  {\r\n                   \"heightCm\":  10,\r\n                   \"description\":  \"Books\",\r\n                   \"weightKg\":  1.5,\r\n                   \"lengthCm\":  20,\r\n                   \"widthCm\":  15\r\n               },\r\n    \"serviceType\":  \"STANDARD\"\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              },
+              "mode": "raw"
+            },
+            "method": "POST",
+            "url": "{{baseUrl}}/api/v1/merchant/orders",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{idempotencyKey}}"
+              }
+            ]
+          },
+          "name": "Create or replay order",
+          "event": [
+            {
+              "script": {
+                "exec": [
+                  "pm.test(\"Accepted or replayed\", () => pm.expect(pm.response.code).to.be.oneOf([202, 200]));",
+                  "if ([200, 202].includes(pm.response.code)) { pm.collectionVariables.set(\"orderId\", pm.response.json().data.id); pm.test(\"Pending booking\", () => pm.expect(pm.response.json().data.status).to.eql(\"PENDING_BOOKING\")); }"
+                ],
+                "type": "text/javascript"
+              },
+              "listen": "test"
+            }
+          ]
+        },
+        {
+          "name": "List orders",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/v1/merchant/orders?page=0&size=20"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Success envelope', () => pm.expect(pm.response.json().success).to.eql(true));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Order details",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/v1/merchant/orders/{{orderId}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Success envelope', () => pm.expect(pm.response.json().success).to.eql(true));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Tracking availability",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/v1/merchant/orders/{{orderId}}/tracking"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Success envelope', () => pm.expect(pm.response.json().success).to.eql(true));",
+                  "pm.test('Pending tracking schema', () => { const d=pm.response.json().data; pm.expect(d.trackingAvailable).to.eql(false); pm.expect(d.events).to.be.an('array'); pm.expect(d.updatedAt).to.be.a('string'); });"
+                ]
+              }
+            }
+          ]
+        }
+      ],
+      "auth": {
+        "type": "apikey",
+        "apikey": [
+          {
+            "key": "key",
+            "type": "string",
+            "value": "X-API-Key"
+          },
+          {
+            "key": "value",
+            "type": "string",
+            "value": "{{apiKey}}"
+          },
+          {
+            "key": "in",
+            "type": "string",
+            "value": "header"
+          }
+        ]
+      }
+    },
+    {
+      "name": "OAuth",
+      "item": [
+        {
+          "request": {
+            "body": {
+              "raw": "{\r\n    \"merchantOrderId\":  \"{{merchantOrderId}}\",\r\n    \"pickup\":  {\r\n                   \"district\":  \"Colombo\",\r\n                   \"name\":  \"Shop\",\r\n                   \"phone\":  \"+94771234567\",\r\n                   \"address\":  \"1 Main Road\"\r\n               },\r\n    \"recipient\":  {\r\n                      \"district\":  \"Galle\",\r\n                      \"name\":  \"Customer\",\r\n                      \"phone\":  \"+94771234568\",\r\n                      \"address\":  \"2 Lake Road\"\r\n                  },\r\n    \"parcel\":  {\r\n                   \"heightCm\":  10,\r\n                   \"description\":  \"Books\",\r\n                   \"weightKg\":  1.5,\r\n                   \"lengthCm\":  20,\r\n                   \"widthCm\":  15\r\n               },\r\n    \"serviceType\":  \"STANDARD\"\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              },
+              "mode": "raw"
+            },
+            "method": "POST",
+            "url": "{{baseUrl}}/api/v1/merchant/orders",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{idempotencyKey}}"
+              }
+            ]
+          },
+          "name": "Create or replay order",
+          "event": [
+            {
+              "script": {
+                "exec": [
+                  "pm.test(\"Accepted or replayed\", () => pm.expect(pm.response.code).to.be.oneOf([202, 200]));",
+                  "if ([200, 202].includes(pm.response.code)) { pm.collectionVariables.set(\"orderId\", pm.response.json().data.id); pm.test(\"Pending booking\", () => pm.expect(pm.response.json().data.status).to.eql(\"PENDING_BOOKING\")); }"
+                ],
+                "type": "text/javascript"
+              },
+              "listen": "test"
+            }
+          ]
+        },
+        {
+          "name": "List orders",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/v1/merchant/orders?page=0&size=20"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Success envelope', () => pm.expect(pm.response.json().success).to.eql(true));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Order details",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/v1/merchant/orders/{{orderId}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Success envelope', () => pm.expect(pm.response.json().success).to.eql(true));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Tracking availability",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/v1/merchant/orders/{{orderId}}/tracking"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Success envelope', () => pm.expect(pm.response.json().success).to.eql(true));",
+                  "pm.test('Pending tracking schema', () => { const d=pm.response.json().data; pm.expect(d.trackingAvailable).to.eql(false); pm.expect(d.events).to.be.an('array'); pm.expect(d.updatedAt).to.be.a('string'); });"
+                ]
+              }
+            }
+          ]
+        }
+      ],
+      "auth": {
+        "bearer": [
+          {
+            "key": "token",
+            "type": "string",
+            "value": "{{accessToken}}"
+          }
+        ],
+        "type": "bearer"
+      }
+    },
+    {
+      "name": "Negative cases (run after positive Create)",
+      "auth": {
+        "type": "noauth"
+      },
+      "item": [
+        {
+          "name": "Missing credentials",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/v1/merchant/orders",
+            "header": []
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 401', () => pm.response.to.have.status(401));",
+                  "pm.test('Error envelope', () => { const e=pm.response.json(); pm.expect(e.success).to.eql(false); pm.expect(e.status).to.eql(401); pm.expect(e.message).to.be.a('string'); pm.expect(e.errors).to.be.an('object'); pm.expect(e.timestamp).to.be.a('string'); });",
+                  "pm.test('No-store', () => pm.expect(pm.response.headers.get('Cache-Control')).to.eql('no-store'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Invalid API key",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/v1/merchant/orders",
+            "header": [
+              {
+                "key": "X-API-Key",
+                "value": "invalid-key"
+              }
+            ]
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 401', () => pm.response.to.have.status(401));",
+                  "pm.test('Error envelope', () => { const e=pm.response.json(); pm.expect(e.success).to.eql(false); pm.expect(e.status).to.eql(401); pm.expect(e.message).to.be.a('string'); pm.expect(e.errors).to.be.an('object'); pm.expect(e.timestamp).to.be.a('string'); });",
+                  "pm.test('No-store', () => pm.expect(pm.response.headers.get('Cache-Control')).to.eql('no-store'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Browser JWT is not a machine token",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/v1/merchant/orders",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer not-a-machine-token"
+              }
+            ]
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 401', () => pm.response.to.have.status(401));",
+                  "pm.test('Error envelope', () => { const e=pm.response.json(); pm.expect(e.success).to.eql(false); pm.expect(e.status).to.eql(401); pm.expect(e.message).to.be.a('string'); pm.expect(e.errors).to.be.an('object'); pm.expect(e.timestamp).to.be.a('string'); });",
+                  "pm.test('No-store', () => pm.expect(pm.response.headers.get('Cache-Control')).to.eql('no-store'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Mixed credentials",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/v1/merchant/orders",
+            "header": [
+              {
+                "key": "X-API-Key",
+                "value": "{{apiKey}}"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer invalid"
+              }
+            ]
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 401', () => pm.response.to.have.status(401));",
+                  "pm.test('Error envelope', () => { const e=pm.response.json(); pm.expect(e.success).to.eql(false); pm.expect(e.status).to.eql(401); pm.expect(e.message).to.be.a('string'); pm.expect(e.errors).to.be.an('object'); pm.expect(e.timestamp).to.be.a('string'); });",
+                  "pm.test('No-store', () => pm.expect(pm.response.headers.get('Cache-Control')).to.eql('no-store'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Duplicate API key headers",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/v1/merchant/orders",
+            "header": [
+              {
+                "key": "X-API-Key",
+                "value": "{{apiKey}}"
+              },
+              {
+                "key": "X-API-Key",
+                "value": "{{apiKey}}"
+              }
+            ]
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 401', () => pm.response.to.have.status(401));",
+                  "pm.test('Error envelope', () => { const e=pm.response.json(); pm.expect(e.success).to.eql(false); pm.expect(e.status).to.eql(401); pm.expect(e.message).to.be.a('string'); pm.expect(e.errors).to.be.an('object'); pm.expect(e.timestamp).to.be.a('string'); });",
+                  "pm.test('No-store', () => pm.expect(pm.response.headers.get('Cache-Control')).to.eql('no-store'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Missing Idempotency-Key",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/v1/merchant/orders",
+            "header": [
+              {
+                "key": "X-API-Key",
+                "value": "{{apiKey}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"merchantOrderId\":\"{{merchantOrderId}}\",\"pickup\":{\"district\":\"Colombo\",\"name\":\"Shop\",\"phone\":\"+94771234567\",\"address\":\"1 Main Road\"},\"recipient\":{\"district\":\"Galle\",\"name\":\"Customer\",\"phone\":\"+94771234568\",\"address\":\"2 Lake Road\"},\"parcel\":{\"heightCm\":10,\"description\":\"Books\",\"weightKg\":1.5,\"lengthCm\":20,\"widthCm\":15},\"serviceType\":\"STANDARD\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 400', () => pm.response.to.have.status(400));",
+                  "pm.test('Error envelope', () => { const e=pm.response.json(); pm.expect(e.success).to.eql(false); pm.expect(e.status).to.eql(400); pm.expect(e.message).to.be.a('string'); pm.expect(e.errors).to.be.an('object'); pm.expect(e.timestamp).to.be.a('string'); });",
+                  "pm.test('No-store', () => pm.expect(pm.response.headers.get('Cache-Control')).to.eql('no-store'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Duplicate Idempotency-Key",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/v1/merchant/orders",
+            "header": [
+              {
+                "key": "X-API-Key",
+                "value": "{{apiKey}}"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "one"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "two"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"merchantOrderId\":\"{{merchantOrderId}}\",\"pickup\":{\"district\":\"Colombo\",\"name\":\"Shop\",\"phone\":\"+94771234567\",\"address\":\"1 Main Road\"},\"recipient\":{\"district\":\"Galle\",\"name\":\"Customer\",\"phone\":\"+94771234568\",\"address\":\"2 Lake Road\"},\"parcel\":{\"heightCm\":10,\"description\":\"Books\",\"weightKg\":1.5,\"lengthCm\":20,\"widthCm\":15},\"serviceType\":\"STANDARD\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 400', () => pm.response.to.have.status(400));",
+                  "pm.test('Error envelope', () => { const e=pm.response.json(); pm.expect(e.success).to.eql(false); pm.expect(e.status).to.eql(400); pm.expect(e.message).to.be.a('string'); pm.expect(e.errors).to.be.an('object'); pm.expect(e.timestamp).to.be.a('string'); });",
+                  "pm.test('No-store', () => pm.expect(pm.response.headers.get('Cache-Control')).to.eql('no-store'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Malformed JSON",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/v1/merchant/orders",
+            "header": [
+              {
+                "key": "X-API-Key",
+                "value": "{{apiKey}}"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{idempotencyKey}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 400', () => pm.response.to.have.status(400));",
+                  "pm.test('Error envelope', () => { const e=pm.response.json(); pm.expect(e.success).to.eql(false); pm.expect(e.status).to.eql(400); pm.expect(e.message).to.be.a('string'); pm.expect(e.errors).to.be.an('object'); pm.expect(e.timestamp).to.be.a('string'); });",
+                  "pm.test('No-store', () => pm.expect(pm.response.headers.get('Cache-Control')).to.eql('no-store'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Missing required fields",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/v1/merchant/orders",
+            "header": [
+              {
+                "key": "X-API-Key",
+                "value": "{{apiKey}}"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{idempotencyKey}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 400', () => pm.response.to.have.status(400));",
+                  "pm.test('Error envelope', () => { const e=pm.response.json(); pm.expect(e.success).to.eql(false); pm.expect(e.status).to.eql(400); pm.expect(e.message).to.be.a('string'); pm.expect(e.errors).to.be.an('object'); pm.expect(e.timestamp).to.be.a('string'); });",
+                  "pm.test('No-store', () => pm.expect(pm.response.headers.get('Cache-Control')).to.eql('no-store'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Ownership injection",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/v1/merchant/orders",
+            "header": [
+              {
+                "key": "X-API-Key",
+                "value": "{{apiKey}}"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{idempotencyKey}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"merchantOrderId\":\"{{merchantOrderId}}\",\"pickup\":{\"district\":\"Colombo\",\"name\":\"Shop\",\"phone\":\"+94771234567\",\"address\":\"1 Main Road\"},\"recipient\":{\"district\":\"Galle\",\"name\":\"Customer\",\"phone\":\"+94771234568\",\"address\":\"2 Lake Road\"},\"parcel\":{\"heightCm\":10,\"description\":\"Books\",\"weightKg\":1.5,\"lengthCm\":20,\"widthCm\":15},\"serviceType\":\"STANDARD\",\"merchantId\":\"injected\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 400', () => pm.response.to.have.status(400));",
+                  "pm.test('Error envelope', () => { const e=pm.response.json(); pm.expect(e.success).to.eql(false); pm.expect(e.status).to.eql(400); pm.expect(e.message).to.be.a('string'); pm.expect(e.errors).to.be.an('object'); pm.expect(e.timestamp).to.be.a('string'); });",
+                  "pm.test('No-store', () => pm.expect(pm.response.headers.get('Cache-Control')).to.eql('no-store'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Invalid parcel weight",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/v1/merchant/orders",
+            "header": [
+              {
+                "key": "X-API-Key",
+                "value": "{{apiKey}}"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{idempotencyKey}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"merchantOrderId\":\"{{merchantOrderId}}\",\"pickup\":{\"district\":\"Colombo\",\"name\":\"Shop\",\"phone\":\"+94771234567\",\"address\":\"1 Main Road\"},\"recipient\":{\"district\":\"Galle\",\"name\":\"Customer\",\"phone\":\"+94771234568\",\"address\":\"2 Lake Road\"},\"parcel\":{\"heightCm\":10,\"description\":\"Books\",\"weightKg\":0,\"lengthCm\":20,\"widthCm\":15},\"serviceType\":\"STANDARD\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 400', () => pm.response.to.have.status(400));",
+                  "pm.test('Error envelope', () => { const e=pm.response.json(); pm.expect(e.success).to.eql(false); pm.expect(e.status).to.eql(400); pm.expect(e.message).to.be.a('string'); pm.expect(e.errors).to.be.an('object'); pm.expect(e.timestamp).to.be.a('string'); });",
+                  "pm.test('No-store', () => pm.expect(pm.response.headers.get('Cache-Control')).to.eql('no-store'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Phone without digits",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/v1/merchant/orders",
+            "header": [
+              {
+                "key": "X-API-Key",
+                "value": "{{apiKey}}"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{idempotencyKey}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"merchantOrderId\":\"{{merchantOrderId}}\",\"pickup\":{\"district\":\"Colombo\",\"name\":\"Shop\",\"phone\":\"-------\",\"address\":\"1 Main Road\"},\"recipient\":{\"district\":\"Galle\",\"name\":\"Customer\",\"phone\":\"+94771234568\",\"address\":\"2 Lake Road\"},\"parcel\":{\"heightCm\":10,\"description\":\"Books\",\"weightKg\":1.5,\"lengthCm\":20,\"widthCm\":15},\"serviceType\":\"STANDARD\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 400', () => pm.response.to.have.status(400));",
+                  "pm.test('Error envelope', () => { const e=pm.response.json(); pm.expect(e.success).to.eql(false); pm.expect(e.status).to.eql(400); pm.expect(e.message).to.be.a('string'); pm.expect(e.errors).to.be.an('object'); pm.expect(e.timestamp).to.be.a('string'); });",
+                  "pm.test('No-store', () => pm.expect(pm.response.headers.get('Cache-Control')).to.eql('no-store'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Unsupported service",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/v1/merchant/orders",
+            "header": [
+              {
+                "key": "X-API-Key",
+                "value": "{{apiKey}}"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{idempotencyKey}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"merchantOrderId\":\"{{merchantOrderId}}\",\"pickup\":{\"district\":\"Colombo\",\"name\":\"Shop\",\"phone\":\"+94771234567\",\"address\":\"1 Main Road\"},\"recipient\":{\"district\":\"Galle\",\"name\":\"Customer\",\"phone\":\"+94771234568\",\"address\":\"2 Lake Road\"},\"parcel\":{\"heightCm\":10,\"description\":\"Books\",\"weightKg\":1.5,\"lengthCm\":20,\"widthCm\":15},\"serviceType\":\"UNKNOWN\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 400', () => pm.response.to.have.status(400));",
+                  "pm.test('Error envelope', () => { const e=pm.response.json(); pm.expect(e.success).to.eql(false); pm.expect(e.status).to.eql(400); pm.expect(e.message).to.be.a('string'); pm.expect(e.errors).to.be.an('object'); pm.expect(e.timestamp).to.be.a('string'); });",
+                  "pm.test('No-store', () => pm.expect(pm.response.headers.get('Cache-Control')).to.eql('no-store'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Duplicate JSON property",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/v1/merchant/orders",
+            "header": [
+              {
+                "key": "X-API-Key",
+                "value": "{{apiKey}}"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{idempotencyKey}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"merchantOrderId\":\"{{merchantOrderId}}\",\"pickup\":{\"district\":\"Colombo\",\"name\":\"Shop\",\"phone\":\"+94771234567\",\"address\":\"1 Main Road\"},\"recipient\":{\"district\":\"Galle\",\"name\":\"Customer\",\"phone\":\"+94771234568\",\"address\":\"2 Lake Road\"},\"parcel\":{\"heightCm\":10,\"description\":\"Books\",\"weightKg\":1.5,\"lengthCm\":20,\"widthCm\":15},\"serviceType\":\"EXPRESS\",\"serviceType\":\"STANDARD\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 400', () => pm.response.to.have.status(400));",
+                  "pm.test('Error envelope', () => { const e=pm.response.json(); pm.expect(e.success).to.eql(false); pm.expect(e.status).to.eql(400); pm.expect(e.message).to.be.a('string'); pm.expect(e.errors).to.be.an('object'); pm.expect(e.timestamp).to.be.a('string'); });",
+                  "pm.test('No-store', () => pm.expect(pm.response.headers.get('Cache-Control')).to.eql('no-store'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Invalid page",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/v1/merchant/orders?page=-1",
+            "header": [
+              {
+                "key": "X-API-Key",
+                "value": "{{apiKey}}"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{idempotencyKey}}"
+              }
+            ]
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 400', () => pm.response.to.have.status(400));",
+                  "pm.test('Error envelope', () => { const e=pm.response.json(); pm.expect(e.success).to.eql(false); pm.expect(e.status).to.eql(400); pm.expect(e.message).to.be.a('string'); pm.expect(e.errors).to.be.an('object'); pm.expect(e.timestamp).to.be.a('string'); });",
+                  "pm.test('No-store', () => pm.expect(pm.response.headers.get('Cache-Control')).to.eql('no-store'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Invalid page size",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/v1/merchant/orders?size=101",
+            "header": [
+              {
+                "key": "X-API-Key",
+                "value": "{{apiKey}}"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{idempotencyKey}}"
+              }
+            ]
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 400', () => pm.response.to.have.status(400));",
+                  "pm.test('Error envelope', () => { const e=pm.response.json(); pm.expect(e.success).to.eql(false); pm.expect(e.status).to.eql(400); pm.expect(e.message).to.be.a('string'); pm.expect(e.errors).to.be.an('object'); pm.expect(e.timestamp).to.be.a('string'); });",
+                  "pm.test('No-store', () => pm.expect(pm.response.headers.get('Cache-Control')).to.eql('no-store'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Malformed order UUID",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/v1/merchant/orders/not-a-uuid",
+            "header": [
+              {
+                "key": "X-API-Key",
+                "value": "{{apiKey}}"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{idempotencyKey}}"
+              }
+            ]
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 400', () => pm.response.to.have.status(400));",
+                  "pm.test('Error envelope', () => { const e=pm.response.json(); pm.expect(e.success).to.eql(false); pm.expect(e.status).to.eql(400); pm.expect(e.message).to.be.a('string'); pm.expect(e.errors).to.be.an('object'); pm.expect(e.timestamp).to.be.a('string'); });",
+                  "pm.test('No-store', () => pm.expect(pm.response.headers.get('Cache-Control')).to.eql('no-store'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Missing order",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/v1/merchant/orders/{{$guid}}",
+            "header": [
+              {
+                "key": "X-API-Key",
+                "value": "{{apiKey}}"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{idempotencyKey}}"
+              }
+            ]
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 404', () => pm.response.to.have.status(404));",
+                  "pm.test('Error envelope', () => { const e=pm.response.json(); pm.expect(e.success).to.eql(false); pm.expect(e.status).to.eql(404); pm.expect(e.message).to.be.a('string'); pm.expect(e.errors).to.be.an('object'); pm.expect(e.timestamp).to.be.a('string'); });",
+                  "pm.test('No-store', () => pm.expect(pm.response.headers.get('Cache-Control')).to.eql('no-store'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Unsupported media type",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/v1/merchant/orders",
+            "header": [
+              {
+                "key": "X-API-Key",
+                "value": "{{apiKey}}"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{idempotencyKey}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "text/plain"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"merchantOrderId\":\"{{merchantOrderId}}\",\"pickup\":{\"district\":\"Colombo\",\"name\":\"Shop\",\"phone\":\"+94771234567\",\"address\":\"1 Main Road\"},\"recipient\":{\"district\":\"Galle\",\"name\":\"Customer\",\"phone\":\"+94771234568\",\"address\":\"2 Lake Road\"},\"parcel\":{\"heightCm\":10,\"description\":\"Books\",\"weightKg\":1.5,\"lengthCm\":20,\"widthCm\":15},\"serviceType\":\"STANDARD\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 415', () => pm.response.to.have.status(415));",
+                  "pm.test('Error envelope', () => { const e=pm.response.json(); pm.expect(e.success).to.eql(false); pm.expect(e.status).to.eql(415); pm.expect(e.message).to.be.a('string'); pm.expect(e.errors).to.be.an('object'); pm.expect(e.timestamp).to.be.a('string'); });",
+                  "pm.test('No-store', () => pm.expect(pm.response.headers.get('Cache-Control')).to.eql('no-store'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Unsupported method",
+          "request": {
+            "method": "PUT",
+            "url": "{{baseUrl}}/api/v1/merchant/orders",
+            "header": [
+              {
+                "key": "X-API-Key",
+                "value": "{{apiKey}}"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{idempotencyKey}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"merchantOrderId\":\"{{merchantOrderId}}\",\"pickup\":{\"district\":\"Colombo\",\"name\":\"Shop\",\"phone\":\"+94771234567\",\"address\":\"1 Main Road\"},\"recipient\":{\"district\":\"Galle\",\"name\":\"Customer\",\"phone\":\"+94771234568\",\"address\":\"2 Lake Road\"},\"parcel\":{\"heightCm\":10,\"description\":\"Books\",\"weightKg\":1.5,\"lengthCm\":20,\"widthCm\":15},\"serviceType\":\"STANDARD\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 405', () => pm.response.to.have.status(405));",
+                  "pm.test('Error envelope', () => { const e=pm.response.json(); pm.expect(e.success).to.eql(false); pm.expect(e.status).to.eql(405); pm.expect(e.message).to.be.a('string'); pm.expect(e.errors).to.be.an('object'); pm.expect(e.timestamp).to.be.a('string'); });",
+                  "pm.test('No-store', () => pm.expect(pm.response.headers.get('Cache-Control')).to.eql('no-store'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Changed payload conflicts after positive Create",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/v1/merchant/orders",
+            "header": [
+              {
+                "key": "X-API-Key",
+                "value": "{{apiKey}}"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{idempotencyKey}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"merchantOrderId\":\"{{merchantOrderId}}\",\"pickup\":{\"district\":\"Colombo\",\"name\":\"Shop\",\"phone\":\"+94771234567\",\"address\":\"1 Main Road\"},\"recipient\":{\"district\":\"Galle\",\"name\":\"Customer\",\"phone\":\"+94771234568\",\"address\":\"2 Lake Road\"},\"parcel\":{\"heightCm\":10,\"description\":\"Changed item\",\"weightKg\":1.5,\"lengthCm\":20,\"widthCm\":15},\"serviceType\":\"STANDARD\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 409', () => pm.response.to.have.status(409));",
+                  "pm.test('Error envelope', () => { const e=pm.response.json(); pm.expect(e.success).to.eql(false); pm.expect(e.status).to.eql(409); pm.expect(e.message).to.be.a('string'); pm.expect(e.errors).to.be.an('object'); pm.expect(e.timestamp).to.be.a('string'); });",
+                  "pm.test('No-store', () => pm.expect(pm.response.headers.get('Cache-Control')).to.eql('no-store'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Foreign order (optional otherApiKey)",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/v1/merchant/orders/{{orderId}}",
+            "header": [
+              {
+                "key": "X-API-Key",
+                "value": "{{otherApiKey}}"
+              }
+            ]
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.variables.get('otherApiKey')) pm.execution.skipRequest();"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 404', () => pm.response.to.have.status(404));",
+                  "pm.test('Error envelope', () => { const e=pm.response.json(); pm.expect(e.success).to.eql(false); pm.expect(e.status).to.eql(404); pm.expect(e.message).to.be.a('string'); pm.expect(e.errors).to.be.an('object'); pm.expect(e.timestamp).to.be.a('string'); });",
+                  "pm.test('No-store', () => pm.expect(pm.response.headers.get('Cache-Control')).to.eql('no-store'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Read-only OAuth cannot create (optional)",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/v1/merchant/orders",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{readOnlyAccessToken}}"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "readonly-test"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"merchantOrderId\":\"{{merchantOrderId}}\",\"pickup\":{\"district\":\"Colombo\",\"name\":\"Shop\",\"phone\":\"+94771234567\",\"address\":\"1 Main Road\"},\"recipient\":{\"district\":\"Galle\",\"name\":\"Customer\",\"phone\":\"+94771234568\",\"address\":\"2 Lake Road\"},\"parcel\":{\"heightCm\":10,\"description\":\"Books\",\"weightKg\":1.5,\"lengthCm\":20,\"widthCm\":15},\"serviceType\":\"STANDARD\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.variables.get('readOnlyAccessToken')) pm.execution.skipRequest();"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 403', () => pm.response.to.have.status(403));",
+                  "pm.test('Error envelope', () => { const e=pm.response.json(); pm.expect(e.success).to.eql(false); pm.expect(e.status).to.eql(403); pm.expect(e.message).to.be.a('string'); pm.expect(e.errors).to.be.an('object'); pm.expect(e.timestamp).to.be.a('string'); });",
+                  "pm.test('No-store', () => pm.expect(pm.response.headers.get('Cache-Control')).to.eql('no-store'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Expired OAuth (optional)",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/v1/merchant/orders",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{expiredAccessToken}}"
+              }
+            ]
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.variables.get('expiredAccessToken')) pm.execution.skipRequest();"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 401', () => pm.response.to.have.status(401));",
+                  "pm.test('Error envelope', () => { const e=pm.response.json(); pm.expect(e.success).to.eql(false); pm.expect(e.status).to.eql(401); pm.expect(e.message).to.be.a('string'); pm.expect(e.errors).to.be.an('object'); pm.expect(e.timestamp).to.be.a('string'); });",
+                  "pm.test('No-store', () => pm.expect(pm.response.headers.get('Cache-Control')).to.eql('no-store'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Revoked API key (optional)",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/v1/merchant/orders",
+            "header": [
+              {
+                "key": "X-API-Key",
+                "value": "{{revokedApiKey}}"
+              }
+            ]
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.variables.get('revokedApiKey')) pm.execution.skipRequest();"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 401', () => pm.response.to.have.status(401));",
+                  "pm.test('Error envelope', () => { const e=pm.response.json(); pm.expect(e.success).to.eql(false); pm.expect(e.status).to.eql(401); pm.expect(e.message).to.be.a('string'); pm.expect(e.errors).to.be.an('object'); pm.expect(e.timestamp).to.be.a('string'); });",
+                  "pm.test('No-store', () => pm.expect(pm.response.headers.get('Cache-Control')).to.eql('no-store'));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
 }

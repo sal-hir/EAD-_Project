@@ -26,6 +26,8 @@ spring:
     properties:
       hibernate.default_schema: merchant
   jackson:
+    parser:
+      strict-duplicate-detection: true
     deserialization:
       fail-on-unknown-properties: true
 management:

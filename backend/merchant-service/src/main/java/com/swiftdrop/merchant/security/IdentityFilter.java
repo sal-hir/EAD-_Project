@@ -21,6 +21,7 @@ public class IdentityFilter extends OncePerRequestFilter {
         if(request.getRequestURI().startsWith("/actuator/health")||"OPTIONS".equals(request.getMethod())){chain.doFilter(request,response);return;}
         if("/api/v1/oauth/token".equals(request.getRequestURI())&&"POST".equals(request.getMethod())){chain.doFilter(request,response);return;}
         if(request.getRequestURI().equals("/api/v1/merchant/orders") || request.getRequestURI().startsWith("/api/v1/merchant/orders/")) {
+            response.setHeader("Cache-Control","no-store");
             try {
                 var apiHeaders=java.util.Collections.list(request.getHeaders("X-API-Key"));
                 var bearerHeaders=java.util.Collections.list(request.getHeaders("Authorization"));

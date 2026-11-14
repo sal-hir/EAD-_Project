@@ -11,7 +11,7 @@ public final class OrderDtos {
     private OrderDtos() {}
     public record Contact(
         @NotBlank @Size(max=120) String name,
-        @NotBlank @Pattern(regexp="[+0-9() -]{7,30}") String phone,
+        @NotBlank @Pattern(regexp="(?=(?:[^0-9]*[0-9]){7,15}[^0-9]*$)[+0-9() -]{7,30}") String phone,
         @NotBlank @Size(max=500) String address,
         @NotBlank @Size(max=120) String district) {}
     public record Parcel(
@@ -31,6 +31,8 @@ public final class OrderDtos {
                         UUID parcelId, String trackingNumber, Instant createdAt, Create request) {}
     public record Created(Order order, boolean replay) {}
     public record Page(List<Order> orders, int page, int size, long total) {}
+    public record TrackingEvent(String status, Instant occurredAt, String description) {}
     public record Tracking(UUID orderId, String merchantOrderId, String status,
-                           UUID parcelId, String trackingNumber, String message) {}
+                           UUID parcelId, String trackingNumber, boolean trackingAvailable,
+                           Instant updatedAt, List<TrackingEvent> events, String message) {}
 }

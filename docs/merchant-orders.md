@@ -1,4 +1,9 @@
-# Member 5: Merchant Orders API
+# Member 5: Merchant Orders API — intake contract v1.0
+
+The public Member 5 endpoint names, authentication rules and intake JSON are finalized
+for this implementation. This does not imply Member 2 has approved a booking contract.
+Use the versioned singular `/api/v1/merchant/orders` route; `/api/merchant/orders`,
+`/merchant/orders` and legacy `/parcels/merchant` are not aliases.
 
 The first increment implements authenticated, durable **order intake**, inside the
 existing Merchant Service (port 4001). It reuses Member 4's API-key and OAuth
@@ -24,8 +29,9 @@ Base: `http://localhost:4001/api/v1/merchant/orders`.
 Send **one** `X-API-Key` header **or** one `Authorization: Bearer <opaque machine token>`.
 Mixed/duplicated mechanisms and browser login JWTs are rejected. Every request checks
 current business approval, credential validity and current Auth account eligibility.
-Auth outages fail closed (503). OAuth read permission is a local design choice using
-the existing `merchant:read` scope; the team must confirm it before external release.
+Auth outages fail closed (503). OAuth GET access uses the existing `merchant:read`
+scope; POST uses `orders:write`. This is the finalized Member 5 rule using Member 4's
+implemented scopes; external team sign-off is not claimed.
 Machine credentials belong in shop server code, never browser frontend code.
 
 See [API keys](merchant-api-keys.md) and [OAuth token issuance](merchant-oauth.md).
@@ -60,8 +66,12 @@ Request fields are validated recursively; unknown fields are rejected. Order
 references use 1–100 ASCII letters/digits/dot/underscore/hyphen, starting with a
 letter/digit. Keys allow colon additionally and are 1–128 characters. Weight is
 0.001–1000 kg (3 decimal places); each dimension is 0.1–500 cm (1 decimal place).
-Service is STANDARD or EXPRESS. These are provisional intake limits, not agreed
-pricing or booking rules. Notes are optional, up to 1000 characters.
+Service is STANDARD or EXPRESS. These are finalized intake limits, not Member 2
+pricing or booking rules. Notes are optional, up to 1000 characters. Contacts require
+7–15 phone digits and allow only plus, digits, parentheses, spaces and hyphens
+(7–30 total characters). All text fields except optional notes must be nonblank.
+Nested objects are required and cannot be null. Duplicate JSON fields are rejected,
+including nested fields. Multiple Idempotency-Key headers are rejected with 400.
 
 Responses use `{success:true,data:...}`. Order data contains `id`, `merchantId`,
 `merchantOrderId`, `status`, nullable `parcelId`/`trackingNumber`, `createdAt`, and
@@ -82,10 +92,72 @@ both merchant reference and key. Retry records persist with the order.
 | 403 | OAuth token lacks the endpoint's required scope |
 | 404 | No owned order at that ID |
 | 409 | Reference/key conflicts with an existing request |
-| 503 | Authentication validation unavailable |
+| 405 | Method not supported; Allow header identifies supported methods |
+| 415 | Unsupported Content-Type; POST requires application/json |
+| 503 | Authentication validation or order storage temporarily unavailable |
 
 Errors retain the existing Merchant error envelope:
 `{success:false,status,message,errors,timestamp}`.
+Validation failures include field paths such as `errors["parcel.weightKg"]` and
+never echo rejected values. Malformed JSON has an empty errors object. Authentication
+is checked before body validation. All Orders responses, including failures, use
+`Cache-Control: no-store`. OAuth 401/403 responses include the applicable Bearer
+challenge. External shop servers must not mix API keys, user JWTs and OAuth tokens.
+
+## Final response schemas
+
+New POST: HTTP 202, Location points to the order resource, Idempotency-Replayed is
+false. Identical retry: HTTP 200, same Location and ID, Idempotency-Replayed is true.
+Both return this schema (the request object is the submitted validated intake):
+
+```json
+{
+  "success": true,
+  "data": {
+    "id": "11111111-1111-4111-8111-111111111111",
+    "merchantId": "22222222-2222-4222-8222-222222222222",
+    "merchantOrderId": "SHOP-123",
+    "status": "PENDING_BOOKING",
+    "parcelId": null,
+    "trackingNumber": null,
+    "createdAt": "2026-11-14T10:00:00Z",
+    "request": {
+      "merchantOrderId": "SHOP-123",
+      "pickup": {"name":"Shop","phone":"+94771234567","address":"1 Main Road","district":"Colombo"},
+      "recipient": {"name":"Customer","phone":"+94771234568","address":"2 Lake Road","district":"Galle"},
+      "parcel": {"description":"Books","weightKg":1.5,"lengthCm":20,"widthCm":15,"heightCm":10},
+      "serviceType": "STANDARD",
+      "notes": null
+    }
+  }
+}
+```
+
+Tracking is a stable snapshot; updatedAt reflects the latest known event rather
+than the time the client polls. Until booking integration, the only event is order
+acceptance and is not represented as a courier delivery event:
+
+```json
+{
+  "success": true,
+  "data": {
+    "orderId": "11111111-1111-4111-8111-111111111111",
+    "merchantOrderId": "SHOP-123",
+    "status": "PENDING_BOOKING",
+    "parcelId": null,
+    "trackingNumber": null,
+    "trackingAvailable": false,
+    "updatedAt": "2026-11-14T10:00:00Z",
+    "events": [{"status":"PENDING_BOOKING","occurredAt":"2026-11-14T10:00:00Z","description":"Order accepted; booking pending"}],
+    "message": "Order accepted; parcel creation and tracking await Member 2 booking integration"
+  }
+}
+```
+
+List response: `{success:true,data:{orders:[<order objects>],page:0,size:20,total:1}}`.
+The total is scoped to the caller and pagination is newest-first by createdAt and ID.
+Missing/foreign order: HTTP 404 with
+`{success:false,status:404,message:"Order not found",errors:{},timestamp:"<ISO UTC>"}`.
 
 ## Run and verify
 
@@ -106,13 +178,32 @@ to verify 404 for the saved order ID. The collection saves the returned orderId.
 The static [OpenAPI specification](openapi/merchant-orders.yaml) can be imported
 into Swagger Editor or Postman; no Swagger UI endpoint is installed by this change.
 
+The collection includes **25 negative requests** covering invalid/mixed/duplicated
+credentials, payload/header validation, ownership, missing orders, invalid pagination,
+idempotency conflict, unsupported method/media type, OAuth scope and expired/revoked
+credentials. Run positive Create first. Set otherApiKey, readOnlyAccessToken,
+expiredAccessToken and revokedApiKey privately to run the four optional scenarios;
+those requests skip themselves if their variables are empty. Never publish secrets
+in an exported environment or collection. The automated test executes all 33 collection
+requests (8 positive + 25 negative) through the real API stack with isolated fixtures.
+
+## Mock booking integration
+
+[Proposed booking contract and mock guide](merchant-booking-mock.md) defines the
+candidate boundary. A real loopback HTTP mock runs only from test sources. The
+candidate HTTP adapter is deliberately not registered as a production Spring bean,
+and OrderService does not call it. Mock parcel IDs never enter live order storage.
+Tests exercise persisted order intake -> candidate adapter -> mock booking plus
+idempotent retry, upstream failure, malformed/mismatched responses and timeout retry.
+
 ## Member 2 handoff — agreement still required
 
 Confirm these before connecting a real booking adapter:
 
 - Parcel creation URL, backend service authentication, response/error envelope.
 - Pickup/recipient address fields, district/zone identifiers, weight/dimensions,
-  service codes and pricing/payment requirements. The intake JSON above is proposed.
+  service codes and pricing/payment requirements. The intake JSON above is finalized
+  for Member 5; the Member 2 translation and acceptance remain to be agreed.
 - Stable upstream idempotency identity based on Merchant order UUID. Network timeouts
   must be recoverable by retry/lookup without creating duplicate parcels.
 - Booking response must supply the authoritative parcel UUID, tracking number and
@@ -123,10 +214,31 @@ Confirm these before connecting a real booking adapter:
 
 ## Checklist status
 
-Implemented: proposed endpoints/JSON, validation, persisted order intake, external
+Independent work: **8/8 complete** for the Member 5 intake increment.
+
+| Task | Result |
+| --- | --- |
+| Endpoint design | Final v1 routes, methods, pagination, ownership and idempotency rules |
+| Request/response JSON | Required/nullable fields, constraints and examples documented |
+| API key/OAuth contract | Existing Member 4 lifecycle reused, scope matrix and failure rules documented |
+| Validation/errors | Nested validation, phone digits, duplicate fields/headers, 400/401/403/404/405/409/415/503 handling |
+| Tracking structure | PENDING_BOOKING, trackingAvailable=false, stable updatedAt and acceptance event |
+| OpenAPI | v1.0.0 static specification, required response fields, request example and resolvable references |
+| Mock booking | Loopback HTTP mock, candidate adapter, persisted-order handoff and failure/retry tests |
+| Postman negatives | 25 negative scenarios; four optional credential scenarios configured in tests |
+
+Verification: Merchant suite **64 tests passed, zero failures/errors/skips**. This
+includes 14 Orders tests and 5 HTTP booking gateway tests. All 33 Postman request
+definitions were exercised against MockMvc with isolated H2 fixtures (not a Postman
+desktop/Newman run); collection JavaScript syntax also parsed successfully. OpenAPI
+YAML/references, request example and required response fields were checked against
+the implemented API. No live Member 2 integration or production deployment was run.
+
+Implemented: finalized intake endpoints/JSON/auth documentation, validation, persisted order intake, external
 reference mapping to local order ID, list/details, explicit pending tracking response,
 idempotency, merchant isolation, API key/OAuth integration, consistent API errors,
-automated integration tests, Postman collection and static OpenAPI docs.
+automated integration tests, Postman positive/negative collection and complete static
+OpenAPI docs, plus an isolated mock booking server and candidate adapter tests.
 
 Pending: external team agreement, Member 2 booking integration, authoritative parcel
 and tracking mapping, live tracking/status integration, full Merchant → Auth → Parcel

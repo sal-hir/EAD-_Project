@@ -135,4 +135,155 @@ class OrderIntegrationTest {
             assertThat(accepted).isEqualTo(1); assertThat(ids).hasSize(1);
         }
     }
+    @Test void trackingSchemaIsExplicitAndStableWhileBookingIsPending() throws Exception {
+        String id=create();
+        String first=mvc.perform(get(PATH+"/"+id+"/tracking").header("X-API-Key",key)).andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.trackingAvailable").value(false))
+            .andExpect(jsonPath("$.data.parcelId").isEmpty())
+            .andExpect(jsonPath("$.data.trackingNumber").isEmpty())
+            .andExpect(jsonPath("$.data.updatedAt").isNotEmpty())
+            .andExpect(jsonPath("$.data.events.length()").value(1))
+            .andExpect(jsonPath("$.data.events[0].status").value("PENDING_BOOKING"))
+            .andReturn().getResponse().getContentAsString();
+        String second=mvc.perform(get(PATH+"/"+id+"/tracking").header("X-API-Key",key))
+            .andReturn().getResponse().getContentAsString();
+        assertThat(json.readTree(first)).isEqualTo(json.readTree(second));
+    }
+    @Test void malformedRequestsReturnConsistentErrorsAndAreNeverPersisted() throws Exception {
+        for(String body:List.of("{",BODY.replace("+94771234567","-------"),BODY.replace("Colombo"," "),
+                BODY.replace("1.5","1000.001"),BODY.replace("\"heightCm\":10","\"heightCm\":null"),
+                BODY.replace("\"serviceType\":\"STANDARD\"","\"serviceType\":\"EXPRESS\",\"serviceType\":\"STANDARD\""),
+                BODY.replace("\"name\":\"Shop\"","\"secret\":\"injected\",\"name\":\"Shop\""))) {
+            submit(key,"validation",body).andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success").value(false)).andExpect(jsonPath("$.status").value(400))
+                .andExpect(jsonPath("$.timestamp").exists()).andExpect(header().string("Cache-Control","no-store"));
+        }
+        submit(key,"validation",BODY.replace("1.5","0")).andExpect(jsonPath("$.errors['parcel.weightKg']").exists());
+        mvc.perform(post(PATH).header("X-API-Key",key).header("Idempotency-Key","one","two")
+            .contentType(MediaType.APPLICATION_JSON).content(BODY)).andExpect(status().isBadRequest());
+        for(String query:List.of("?page=-1","?page=abc","?size=0","?page=1000001"))
+            mvc.perform(get(PATH+query).header("X-API-Key",key)).andExpect(status().isBadRequest());
+        assertThat(db.queryForObject("select count(*) from merchant.orders",Integer.class)).isZero();
+    }
+    @Test void unsupportedMethodsAndMediaTypesHaveCorrectStatus() throws Exception {
+        mvc.perform(put(PATH).header("X-API-Key",key).contentType(MediaType.APPLICATION_JSON).content(BODY))
+            .andExpect(status().isMethodNotAllowed()).andExpect(header().exists("Allow"))
+            .andExpect(jsonPath("$.status").value(405));
+        mvc.perform(post(PATH).header("X-API-Key",key).header("Idempotency-Key","media")
+            .contentType(MediaType.TEXT_PLAIN).content(BODY)).andExpect(status().isUnsupportedMediaType())
+            .andExpect(jsonPath("$.status").value(415));
+    }
+    @Test void duplicateCredentialsAreRejectedAndErrorsAreNotCacheable() throws Exception {
+        mvc.perform(get(PATH).header("X-API-Key",key,otherKey)).andExpect(status().isUnauthorized())
+            .andExpect(header().string("Cache-Control","no-store"));
+        mvc.perform(get(PATH).header("Authorization","Bearer bogus","Bearer bogus"))
+            .andExpect(status().isUnauthorized()).andExpect(header().exists("WWW-Authenticate"));
+    }
+    @Test void persistedOrderCanBeSubmittedToMockWithoutChangingLiveBookingState() throws Exception {
+        String id=create();
+        var order=json.readTree(mvc.perform(get(PATH+"/"+id).header("X-API-Key",key))
+            .andReturn().getResponse().getContentAsString()).path("data");
+        try(var mock=new MockBookingServer(json)) {
+            var gateway=new com.swiftdrop.merchant.client.HttpBookingGateway(mock.endpoint(),"mock-private-service-key",json,java.time.Duration.ofSeconds(2));
+            var request=new com.swiftdrop.merchant.client.BookingGateway.Request(UUID.fromString(id),
+                UUID.fromString(order.path("merchantId").asText()),json.treeToValue(order.path("request"),com.swiftdrop.merchant.dto.OrderDtos.Create.class));
+            var booking=gateway.create(request);
+            assertThat(booking.orderId()).isEqualTo(UUID.fromString(id));
+            assertThat(gateway.create(request).parcelId()).isEqualTo(booking.parcelId());
+            assertThat(mock.created.get()).isEqualTo(1);
+        }
+        mvc.perform(get(PATH+"/"+id+"/tracking").header("X-API-Key",key))
+            .andExpect(jsonPath("$.data.trackingAvailable").value(false))
+            .andExpect(jsonPath("$.data.status").value("PENDING_BOOKING"));
+    }
+    java.nio.file.Path artifact(String relative) {
+        for(String root:List.of("docs","../../docs")) {
+            var path=java.nio.file.Path.of(root,relative);
+            if(java.nio.file.Files.exists(path)) return path;
+        }
+        throw new IllegalStateException("Missing documentation artifact: "+relative);
+    }
+    @Test void everyPostmanRequestMatchesTheImplementedApiIncludingOptionalNegativeCases() throws Exception {
+        var collection=json.readTree(java.nio.file.Files.readString(artifact("postman/merchant-orders.postman_collection.json")));
+        var client=oauth.create(caller(ApiKeyIntegrationTest.OWNER),"Postman",List.of("merchant:read","orders:write"));
+        String expired=oauth.issue(client.credential().clientId(),client.clientSecret(),null).accessToken();
+        db.update("update merchant.oauth_access_tokens set expires_at=?",java.sql.Timestamp.from(java.time.Instant.now().minusSeconds(1)));
+        String token=oauth.issue(client.credential().clientId(),client.clientSecret(),null).accessToken();
+        String readonly=oauth.issue(client.credential().clientId(),client.clientSecret(),"merchant:read").accessToken();
+        var revoked=keys.create(caller(ApiKeyIntegrationTest.OWNER),"Revoked Postman");
+        keys.revokeOwn(caller(ApiKeyIntegrationTest.OWNER),revoked.credential().id());
+        Map<String,String> variables=new HashMap<>(Map.of("apiKey",key,"accessToken",token,"otherApiKey",otherKey,
+            "readOnlyAccessToken",readonly,"expiredAccessToken",expired,"revokedApiKey",revoked.apiKey(),
+            "merchantOrderId","SHOP-123","idempotencyKey","checkout-123","baseUrl",""));
+        int requests=0;
+        for(var folder:collection.path("item")) for(var item:folder.path("item")) {
+            var definition=item.path("request");
+            String url=replaceVariables(definition.path("url").asText(),variables).replace("{{$guid}}",UUID.randomUUID().toString());
+            var builder=request(org.springframework.http.HttpMethod.valueOf(definition.path("method").asText()),url);
+            if(folder.path("auth").path("type").asText().equals("apikey")) builder.header("X-API-Key",key);
+            if(folder.path("auth").path("type").asText().equals("bearer")) builder.header("Authorization","Bearer "+token);
+            for(var header:definition.path("header")) builder.header(header.path("key").asText(),replaceVariables(header.path("value").asText(),variables));
+            if(definition.has("body")) builder.content(replaceVariables(definition.path("body").path("raw").asText(),variables));
+            var response=mvc.perform(builder).andReturn().getResponse();
+            boolean negative=folder.path("name").asText().startsWith("Negative");
+            if(negative) {
+                String scripts=item.path("event").toString();
+                var expected=java.util.regex.Pattern.compile("have.status\\((\\d+)\\)").matcher(scripts);
+                assertThat(expected.find()).as(item.path("name").asText()).isTrue();
+                int code=Integer.parseInt(expected.group(1));
+                assertThat(response.getStatus()).as(item.path("name").asText()+": "+response.getContentAsString()).isEqualTo(code);
+                assertThat(json.readTree(response.getContentAsString()).path("status").asInt()).isEqualTo(code);
+            } else if(definition.path("method").asText().equals("POST")) {
+                assertThat(response.getStatus()).isIn(200,202);
+                variables.put("orderId",json.readTree(response.getContentAsString()).path("data").path("id").asText());
+            } else assertThat(response.getStatus()).as(item.path("name").asText()).isEqualTo(200);
+            assertThat(response.getHeader("Cache-Control")).isEqualTo("no-store"); requests++;
+        }
+        assertThat(requests).isEqualTo(33);
+    }
+    String replaceVariables(String input,Map<String,String> variables) {
+        for(var entry:variables.entrySet()) input=input.replace("{{"+entry.getKey()+"}}",entry.getValue());
+        return input;
+    }
+    @Test void openApiReferencesExampleAndRequiredResponseFieldsMatchTheApi() throws Exception {
+        Object yaml=new org.yaml.snakeyaml.Yaml().load(java.nio.file.Files.readString(artifact("openapi/merchant-orders.yaml")));
+        JsonNode spec=json.valueToTree(yaml);
+        assertThat(spec.path("openapi").asText()).isEqualTo("3.0.3");
+        verifyReferences(spec,spec);
+        var paths=spec.path("paths");
+        var example=paths.path(PATH).path("post").path("requestBody").path("content").path("application/json").path("example");
+        var created=submit(key,"openapi-example",json.writeValueAsString(example)).andExpect(status().isAccepted()).andReturn().getResponse();
+        var order=json.readTree(created.getContentAsString()); String id=order.path("data").path("id").asText();
+        assertRequiredFields(spec,paths.path(PATH).path("post").path("responses").path("202").path("content").path("application/json").path("schema"),order);
+        for(String suffix:List.of("", "/"+id,"/"+id+"/tracking")) {
+            var response=json.readTree(mvc.perform(get(PATH+suffix).header("X-API-Key",key)).andReturn().getResponse().getContentAsString());
+            String documentedPath=suffix.isEmpty()?PATH:PATH+"/{id}"+(suffix.endsWith("/tracking")?"/tracking":"");
+            var schema=paths.path(documentedPath).path("get").path("responses").path("200").path("content").path("application/json").path("schema");
+            assertRequiredFields(spec,schema,response);
+        }
+    }
+    void verifyReferences(JsonNode root,JsonNode node) {
+        if(node.has("$ref")) {
+            String ref=node.path("$ref").asText();
+            assertThat(ref).startsWith("#/");
+            assertThat(root.at(ref.substring(1)).isMissingNode()).as(ref).isFalse();
+        }
+        if(node.has("pattern")) java.util.regex.Pattern.compile(node.path("pattern").asText());
+        node.forEach(child->{if(child.isContainerNode()) verifyReferences(root,child);});
+    }
+    void assertRequiredFields(JsonNode root,JsonNode schema,JsonNode actual) {
+        assertThat(schema.isMissingNode()).isFalse();
+        if(schema.has("$ref")) schema=root.at(schema.path("$ref").asText().substring(1));
+        if(actual.isNull()) { assertThat(schema.path("nullable").asBoolean()).isTrue();return; }
+        for(var required:schema.path("required")) assertThat(actual.has(required.asText())).as(required.asText()).isTrue();
+        if(actual.isObject()) {
+            var properties=schema.path("properties");
+            var names=actual.fieldNames();
+            while(names.hasNext()) {
+                String name=names.next();
+                assertThat(properties.has(name)).as("Documented field: "+name).isTrue();
+                assertRequiredFields(root,properties.path(name),actual.path(name));
+            }
+        } else if(actual.isArray()) for(var item:actual) assertRequiredFields(root,schema.path("items"),item);
+    }
 }

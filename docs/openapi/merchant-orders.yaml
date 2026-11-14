@@ -1,8 +1,16 @@
 openapi: 3.0.3
 info:
   title: SwiftDrop Merchant Order Intake
-  version: 0.1.0
-  description: Orders remain PENDING_BOOKING until Member 2 integration is implemented. No parcel or tracking ID is created yet.
+  version: 1.0.0
+  description: |
+    Final Member 5 intake v1 contract. Orders remain PENDING_BOOKING until Member 2
+    integration is implemented. No parcel or tracking ID is created yet. Send exactly
+    one API key OR one opaque OAuth machine token; browser JWTs are not accepted.
+    POST requires orders:write; GET requires merchant:read for OAuth. All responses
+    including errors use Cache-Control no-store. Unknown and duplicate JSON fields
+    are rejected. String fields must not be blank. All timestamps use ISO 8601 UTC.
+    Idempotency is merchant-scoped and lasts for the lifetime of the stored order.
+    Booking-field agreement with Member 2 remains external to this intake contract.
 servers:
   - url: http://localhost:4001
 security:
@@ -23,6 +31,13 @@ paths:
         content:
           application/json:
             schema: {$ref: '#/components/schemas/CreateOrder'}
+            example:
+              merchantOrderId: SHOP-123
+              pickup: {name: Shop, phone: '+94771234567', address: 1 Main Road, district: Colombo}
+              recipient: {name: Customer, phone: '+94771234568', address: 2 Lake Road, district: Galle}
+              parcel: {description: Books, weightKg: 1.5, lengthCm: 20, widthCm: 15, heightCm: 10}
+              serviceType: STANDARD
+              notes: null
       responses:
         '202':
           description: Accepted and persisted; no booking yet
@@ -34,6 +49,9 @@ paths:
               schema: {$ref: '#/components/schemas/OrderEnvelope'}
         '200':
           description: Identical retry returns original order
+          headers:
+            Location: {schema: {type: string}, description: Original order resource path}
+            Idempotency-Replayed: {schema: {type: boolean, enum: [true]}}
           content:
             application/json:
               schema: {$ref: '#/components/schemas/OrderEnvelope'}
@@ -41,6 +59,7 @@ paths:
         '401': {$ref: '#/components/responses/Unauthenticated'}
         '403': {$ref: '#/components/responses/Forbidden'}
         '409': {$ref: '#/components/responses/Conflict'}
+        '415': {$ref: '#/components/responses/MediaType'}
         '503': {$ref: '#/components/responses/Unavailable'}
     get:
       operationId: listMerchantOrders
@@ -59,10 +78,12 @@ paths:
             application/json:
               schema:
                 type: object
+                required: [success, data]
                 properties:
                   success: {type: boolean, enum: [true]}
                   data:
                     type: object
+                    required: [orders, page, size, total]
                     properties:
                       orders: {type: array, items: {$ref: '#/components/schemas/Order'}}
                       page: {type: integer}
@@ -102,16 +123,30 @@ paths:
             application/json:
               schema:
                 type: object
+                required: [success, data]
                 properties:
                   success: {type: boolean, enum: [true]}
                   data:
                     type: object
+                    required: [orderId, merchantOrderId, status, parcelId, trackingNumber, trackingAvailable, updatedAt, events, message]
                     properties:
                       orderId: {type: string, format: uuid}
                       merchantOrderId: {type: string}
                       status: {type: string, enum: [PENDING_BOOKING]}
                       parcelId: {type: string, format: uuid, nullable: true}
                       trackingNumber: {type: string, nullable: true}
+                      trackingAvailable: {type: boolean, enum: [false]}
+                      updatedAt: {type: string, format: date-time, description: Last known event time; never a polling timestamp}
+                      events:
+                        type: array
+                        minItems: 1
+                        items:
+                          type: object
+                          required: [status, occurredAt, description]
+                          properties:
+                            status: {type: string, enum: [PENDING_BOOKING]}
+                            occurredAt: {type: string, format: date-time}
+                            description: {type: string}
                       message: {type: string}
         '400': {$ref: '#/components/responses/Invalid'}
         '401': {$ref: '#/components/responses/Unauthenticated'}
@@ -120,8 +155,16 @@ paths:
         '503': {$ref: '#/components/responses/Unavailable'}
 components:
   securitySchemes:
-    ApiKey: {type: apiKey, in: header, name: X-API-Key}
-    MachineBearer: {type: http, scheme: bearer, bearerFormat: Opaque Merchant OAuth token}
+    ApiKey:
+      type: apiKey
+      in: header
+      name: X-API-Key
+      description: Approved merchant key generated using Member 4 credential management. Current key/business/account eligibility is checked on every request.
+    MachineBearer:
+      type: http
+      scheme: bearer
+      bearerFormat: Opaque Merchant OAuth token
+      description: Obtain with client_credentials and HTTP Basic from POST /api/v1/oauth/token. POST orders requires orders:write and GET orders requires merchant:read. No browser JWT or refresh token.
   parameters:
     OrderId:
       in: path
@@ -135,7 +178,7 @@ components:
       required: [name, phone, address, district]
       properties:
         name: {type: string, minLength: 1, maxLength: 120}
-        phone: {type: string, pattern: '^[+0-9() -]{7,30}$'}
+        phone: {type: string, pattern: '^(?=(?:[^0-9]*[0-9]){7,15}[^0-9]*$)[+0-9() -]{7,30}$', description: 7-15 digits with optional formatting; total 7-30 characters}
         address: {type: string, minLength: 1, maxLength: 500}
         district: {type: string, minLength: 1, maxLength: 120}
     Parcel:
@@ -161,6 +204,7 @@ components:
         notes: {type: string, maxLength: 1000, nullable: true}
     Order:
       type: object
+      required: [id, merchantId, merchantOrderId, status, parcelId, trackingNumber, createdAt, request]
       properties:
         id: {type: string, format: uuid}
         merchantId: {type: string, format: uuid}
@@ -172,11 +216,13 @@ components:
         request: {$ref: '#/components/schemas/CreateOrder'}
     OrderEnvelope:
       type: object
+      required: [success, data]
       properties:
         success: {type: boolean, enum: [true]}
         data: {$ref: '#/components/schemas/Order'}
     Error:
       type: object
+      required: [success, status, message, errors, timestamp]
       properties:
         success: {type: boolean, enum: [false]}
         status: {type: integer}
@@ -200,5 +246,13 @@ components:
       description: Order reference or idempotency key conflict
       content: {application/json: {schema: {$ref: '#/components/schemas/Error'}}}
     Unavailable:
-      description: Authentication unavailable
+      description: Authentication or order storage temporarily unavailable
+      content: {application/json: {schema: {$ref: '#/components/schemas/Error'}}}
+    MediaType:
+      description: Content-Type must be application/json
+      content: {application/json: {schema: {$ref: '#/components/schemas/Error'}}}
+    MethodNotAllowed:
+      description: Unsupported method; Allow header lists supported methods
+      headers:
+        Allow: {schema: {type: string}}
       content: {application/json: {schema: {$ref: '#/components/schemas/Error'}}}
