@@ -147,9 +147,57 @@ manifest tests), **101 frontend tests passed** (including 8 new operations tests
 and the Vite production build passed. The Kubernetes YAML was parsed and its
 replica/resource/probe/secret/Service relationships checked in the backend suite.
 kubectl client dry-run could not resolve API discovery because no local cluster
-is configured; no rollout or live external receiver request was performed.
+is configured; no rollout was performed. Public receiver verification was completed
+separately as recorded below.
 
 All seven requested independent implementation tasks are complete. Remaining team
 integration: real parcel booking/tracking mapping and authoritative parcel status
 event ingestion. Deployment setup still needs a private encryption key, a real public
 HTTPS receiver, registry image configuration and the target Kubernetes environment.
+
+## Final verification — 2026-11-14
+
+- Generated a cryptographically random 32-byte key and configured matching values in
+  the ignored root and Merchant `.env` files. Existing database/Auth settings were
+  preserved. Key values were not printed or committed. A running Merchant container
+  must be recreated (or a directly launched service restarted) to load its environment.
+- Reran the default Merchant suite: 76 functional tests passed. The live network test
+  is explicit opt-in and skipped by default. Reran the frontend suite: 101 passed.
+- Ran LiveWebhookVerificationTest against a temporary public HTTPS Cloudflare tunnel
+  backed by the test-only Node receiver. It used the real PublicWebhookTransport,
+  isolated H2 and a synthetic business/test event; no live Neon fixtures were created.
+- The independent Node receiver rejected an invalid signature with HTTP 401. The first
+  valid signed attempt returned 503; delivery state/attempt records became RETRY with
+  a persisted 30-second backoff. Sending before the due time did not dispatch another
+  request. Advancing the explicit test dispatch timestamp to the due time triggered
+  a second real HTTPS request, returned 204 and marked the delivery DELIVERED.
+- Both attempts passed Node's constant-time HMAC and timestamp checks. Event ID and
+  SHA-256 body hash were identical across attempts. Due-time eligibility was tested
+  by advancing the dispatch timestamp, rather than waiting 30 wall-clock seconds;
+  this does not claim a live deployment scheduler/restart test.
+- Temporary tunnel/receiver processes were stopped and the temporary signing-secret
+  configuration file was removed. Receipts under ignored target contain only status,
+  verification flag, synthetic event ID and body hash.
+
+### Repeat the opt-in public test
+
+Use the test-only receiver `backend/merchant-service/src/test/live-webhook-receiver.cjs`
+with an explicit private local working directory under target/live-webhook:
+
+```powershell
+New-Item -ItemType Directory -Force backend/merchant-service/target/live-webhook
+node backend/merchant-service/src/test/live-webhook-receiver.cjs backend/merchant-service/target/live-webhook
+```
+
+In another terminal, start a temporary HTTPS tunnel to `http://127.0.0.1:8789` using
+a verified tunnel executable. Set these in the test terminal, using its fresh URL:
+
+```powershell
+$env:SWIFTDROP_LIVE_WEBHOOK_URL = 'https://YOUR-TEMPORARY-TUNNEL-HOST'
+$env:SWIFTDROP_LIVE_WEBHOOK_DIR = Join-Path (Get-Location) 'backend/merchant-service/target/live-webhook'
+mvn -f backend/merchant-service/pom.xml test '-Dwebhook.live.tests=true' '-Dtest=LiveWebhookVerificationTest'
+```
+
+This receiver is only a synthetic verification fixture, not a production merchant
+endpoint. Stop both receiver and tunnel after the test. The test removes its local
+signing-secret file in a finally block and deletes its isolated H2 business fixture.
