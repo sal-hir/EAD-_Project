@@ -27,6 +27,7 @@ services:
       context: ./frontend
       args:
         VITE_API_URL: ${VITE_API_URL:-http://localhost:4000}
+        VITE_COURIER_API_URL: ${VITE_COURIER_API_URL:-http://localhost:4003}
     ports:
       - "3000:80"
     depends_on:
@@ -34,28 +35,88 @@ services:
         condition: service_healthy
     restart: unless-stopped
 
-  # Preserved legacy components, opt-in only. No auth events are published yet.
+  courier-service:
+    build: ./backend/courier-service
+    environment:
+      COURIER_PORT: 4003
+      COURIER_DB_URL: ${COURIER_DB_URL:-${AUTH_DB_URL}}
+      COURIER_MIGRATION_DB_URL: ${COURIER_MIGRATION_DB_URL:-${AUTH_MIGRATION_DB_URL}}
+      COURIER_DB_USER: ${COURIER_DB_USER:-${AUTH_DB_USER}}
+      COURIER_DB_PASSWORD: ${COURIER_DB_PASSWORD:-${AUTH_DB_PASSWORD}}
+      AUTH_SERVICE_URL: http://auth-service:4000
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3000}
+      UPLOAD_DIR: /app/uploads
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_PORT: 5672
+      RABBITMQ_USER: ${RABBITMQ_USER:-swiftdrop}
+      RABBITMQ_PASS: ${RABBITMQ_PASS:-swiftdrop_pass}
+    ports:
+      - "4003:4003"
+    volumes:
+      - uploads_data:/app/uploads
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://localhost:4003/actuator/health/readiness"]
+      interval: 10s
+      timeout: 5s
+      start_period: 40s
+      retries: 10
+    depends_on:
+      auth-service:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    restart: unless-stopped
+
   rabbitmq:
     image: rabbitmq:3.13-management-alpine
-    profiles: ["legacy-notifications"]
     environment:
-      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-swiftdrop}
-      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASS:-}
+      RABBITMQ_DEFAULT_USER: swiftdrop
+      RABBITMQ_DEFAULT_PASS: swiftdrop_pass
     ports:
       - "5672:5672"
       - "15672:15672"
     volumes:
       - rabbitmq_data:/var/lib/rabbitmq
+      - ./infrastructure/rabbitmq/definitions.json:/etc/rabbitmq/definitions.json:ro
+      - ./infrastructure/rabbitmq/rabbitmq.conf:/etc/rabbitmq/rabbitmq.conf:ro
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "check_running"]
+      interval: 10s
+      timeout: 5s
+      start_period: 25s
+      retries: 5
+    restart: unless-stopped
+
+  mailhog:
+    image: mailhog/mailhog:latest
+    ports:
+      - "1025:1025" # SMTP port
+      - "8025:8025" # Web UI port
+    restart: unless-stopped
 
   notification-service:
-    build: ./notification-service
-    profiles: ["legacy-notifications"]
-    env_file: .env
+    build: ./backend/notification-service
     environment:
-      RABBITMQ_URL: amqp://${RABBITMQ_USER:-swiftdrop}:${RABBITMQ_PASS:-}@rabbitmq:5672
-      NODE_ENV: production
+      RABBITMQ_URL: amqp://${RABBITMQ_USER:-swiftdrop}:${RABBITMQ_PASS:-swiftdrop_pass}@rabbitmq:5672
+      SMTP_HOST: mailhog
+      SMTP_PORT: 1025
+      SMTP_SECURE: "false"
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3000}
+      PORT: 4005
+    ports:
+      - "4005:4005"
     depends_on:
-      - rabbitmq
+      rabbitmq:
+        condition: service_healthy
+      mailhog:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://localhost:4005/health"]
+      interval: 10s
+      timeout: 5s
+      start_period: 20s
+      retries: 5
+    restart: unless-stopped
 
 volumes:
   # Old data volumes remain declared and are never migrated or deleted.

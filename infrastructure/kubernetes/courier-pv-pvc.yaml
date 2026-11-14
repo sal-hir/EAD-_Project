@@ -1,0 +1,30 @@
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: courier-proof-pv
+  labels:
+    type: local
+    app: courier-service
+spec:
+  storageClassName: standard
+  capacity:
+    storage: 1Gi
+  accessModes:
+    - ReadWriteOnce
+  hostPath:
+    path: "/mnt/data/courier-uploads"
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: courier-proof-pvc
+  labels:
+    app: courier-service
+spec:
+  storageClassName: standard
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+
