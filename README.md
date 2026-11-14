@@ -17,6 +17,10 @@ rotate/revoke clients and request short-lived, scoped machine tokens from Mercha
 Service. See [OAuth flow and Members 1/5 contract](docs/merchant-oauth.md).
 Actual Merchant Orders integration remains pending.
 
+Member 4's [Kubernetes ConfigMap/Secret templates and setup guide](infrastructure/kubernetes/README.md)
+are prepared for Auth/Merchant. They contain no real credentials; live Kubernetes
+rollout depends on the team's workload and Ingress setup.
+
 ## Run with Docker Compose (recommended)
 
 Install Docker with its Linux engine running. From the repository root:

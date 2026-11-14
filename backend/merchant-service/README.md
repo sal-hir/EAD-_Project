@@ -66,6 +66,7 @@ API key management is now implemented. See [the API key contract](../../docs/mer
 for generation, one-time display, validation, revocation and Member 5 integration.
 OAuth client credentials are implemented separately from browser JWTs and API keys.
 See [OAuth client management and integration](../../docs/merchant-oauth.md).
+For the Kubernetes bonus, use the [ConfigMap/Secret templates and workload references](../../infrastructure/kubernetes/README.md).
 
 ## Verification on 2026-11-14
 
