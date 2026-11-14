@@ -1,6 +1,8 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import { ErrorProvider } from './context/ErrorContext';
+import ErrorBoundary from './components/ErrorBoundary';
 import { ToastProvider } from './context/ToastContext';
 import { NotificationCenterProvider } from './context/NotificationCenterContext';
 import { OAuthCallback } from './pages/OAuthCallback';
@@ -47,97 +49,101 @@ const ProtectedRoute = ({ children, allowedRoles }) => {
 
 export const App = () => {
   return (
-    <Router>
-      <AuthProvider>
-        <ToastProvider>
-          <NotificationCenterProvider>
-            <ApplicationLayout>
-              <Routes>
-                {/* Public Routes */}
-                <Route path="/" element={<Home />} />
-                <Route path="/login" element={<Login />} />
-                <Route path="/forgot-password" element={<ForgotPassword />} />
-                <Route path="/reset-password" element={<ResetPassword />} />
-                <Route path="/register" element={<Register />} />
-                <Route path="/track" element={<PublicTracking />} />
-                <Route path="/track/:trackingNumber" element={<PublicTracking />} />
-                <Route path="/pricing" element={<Pricing />} />
-                <Route path="/help" element={<Help />} />
-                <Route path="/contact" element={<Contact />} />
-                <Route path="/auth/callback" element={<OAuthCallback />} />
-                <Route path="/activate" element={<ActivateAccount />} />
-                <Route path="/account" element={<ProtectedRoute><AccountSettings /></ProtectedRoute>} />
-                <Route path="/admin/users" element={<ProtectedRoute allowedRoles={['ADMIN']}><AdminUsers /></ProtectedRoute>} />
-                <Route path="/admin/merchants" element={<ProtectedRoute allowedRoles={['ADMIN']}><AdminMerchants /></ProtectedRoute>} />
-                <Route path="/merchant/apply" element={<ProtectedRoute allowedRoles={['CUSTOMER','MERCHANT']}><MerchantApply /></ProtectedRoute>} />
-                <Route path="/merchant/application-status" element={<ProtectedRoute allowedRoles={['CUSTOMER','MERCHANT']}><MerchantStatus /></ProtectedRoute>} />
+    <ErrorBoundary>
+      <Router>
+        <AuthProvider>
+          <ErrorProvider>
+            <ToastProvider>
+              <NotificationCenterProvider>
+                <ApplicationLayout>
+                  <Routes>
+                    {/* Public Routes */}
+                    <Route path="/" element={<Home />} />
+                    <Route path="/login" element={<Login />} />
+                    <Route path="/forgot-password" element={<ForgotPassword />} />
+                    <Route path="/reset-password" element={<ResetPassword />} />
+                    <Route path="/register" element={<Register />} />
+                    <Route path="/track" element={<PublicTracking />} />
+                    <Route path="/track/:trackingNumber" element={<PublicTracking />} />
+                    <Route path="/pricing" element={<Pricing />} />
+                    <Route path="/help" element={<Help />} />
+                    <Route path="/contact" element={<Contact />} />
+                    <Route path="/auth/callback" element={<OAuthCallback />} />
+                    <Route path="/activate" element={<ActivateAccount />} />
+                    <Route path="/account" element={<ProtectedRoute><AccountSettings /></ProtectedRoute>} />
+                    <Route path="/admin/users" element={<ProtectedRoute allowedRoles={['ADMIN']}><AdminUsers /></ProtectedRoute>} />
+                    <Route path="/admin/merchants" element={<ProtectedRoute allowedRoles={['ADMIN']}><AdminMerchants /></ProtectedRoute>} />
+                    <Route path="/merchant/apply" element={<ProtectedRoute allowedRoles={['CUSTOMER','MERCHANT']}><MerchantApply /></ProtectedRoute>} />
+                    <Route path="/merchant/application-status" element={<ProtectedRoute allowedRoles={['CUSTOMER','MERCHANT']}><MerchantStatus /></ProtectedRoute>} />
 
-                {/* Customer Routes */}
-                <Route
-                  path="/customer"
-                  element={
-                    <ProtectedRoute allowedRoles={['CUSTOMER', 'ADMIN']}>
-                      <MilestoneUnavailable title="Customer dashboard" />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/customer/new"
-                  element={
-                    <ProtectedRoute allowedRoles={['CUSTOMER', 'ADMIN']}>
-                      <MilestoneUnavailable title="Create parcel" />
-                    </ProtectedRoute>
-                  }
-                />
+                    {/* Customer Routes */}
+                    <Route
+                      path="/customer"
+                      element={
+                        <ProtectedRoute allowedRoles={['CUSTOMER', 'ADMIN']}>
+                          <MilestoneUnavailable title="Customer dashboard" />
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="/customer/new"
+                      element={
+                        <ProtectedRoute allowedRoles={['CUSTOMER', 'ADMIN']}>
+                          <MilestoneUnavailable title="Create parcel" />
+                        </ProtectedRoute>
+                      }
+                    />
 
-                {/* Parcel Details / Tracking (Authenticated) */}
-                <Route
-                  path="/parcels/:id"
-                  element={
-                    <ProtectedRoute allowedRoles={['CUSTOMER', 'COURIER', 'MERCHANT', 'DISPATCHER', 'ADMIN']}>
-                      <MilestoneUnavailable title="Parcel details" />
-                    </ProtectedRoute>
-                  }
-                />
+                    {/* Parcel Details / Tracking (Authenticated) */}
+                    <Route
+                      path="/parcels/:id"
+                      element={
+                        <ProtectedRoute allowedRoles={['CUSTOMER', 'COURIER', 'MERCHANT', 'DISPATCHER', 'ADMIN']}>
+                          <MilestoneUnavailable title="Parcel details" />
+                        </ProtectedRoute>
+                      }
+                    />
 
-                {/* Courier Routes */}
-                <Route
-                  path="/courier"
-                  element={
-                    <ProtectedRoute allowedRoles={['COURIER', 'ADMIN']}>
-                      <MilestoneUnavailable title="Courier dashboard" />
-                    </ProtectedRoute>
-                  }
-                />
+                    {/* Courier Routes */}
+                    <Route
+                      path="/courier"
+                      element={
+                        <ProtectedRoute allowedRoles={['COURIER', 'ADMIN']}>
+                          <MilestoneUnavailable title="Courier dashboard" />
+                        </ProtectedRoute>
+                      }
+                    />
 
-                {/* Merchant Routes */}
-                <Route
-                  path="/merchant"
-                  element={
-                    <ProtectedRoute allowedRoles={['MERCHANT', 'ADMIN']}>
-                      <MerchantDashboard />
-                    </ProtectedRoute>
-                  }
-                />
+                    {/* Merchant Routes */}
+                    <Route
+                      path="/merchant"
+                      element={
+                        <ProtectedRoute allowedRoles={['MERCHANT', 'ADMIN']}>
+                          <MerchantDashboard />
+                        </ProtectedRoute>
+                      }
+                    />
 
-                {/* Admin / Dispatcher Routes */}
-                <Route
-                  path="/admin"
-                  element={
-                    <ProtectedRoute allowedRoles={['ADMIN', 'DISPATCHER']}>
-                      <MilestoneUnavailable title="Administration" />
-                    </ProtectedRoute>
-                  }
-                />
+                    {/* Admin / Dispatcher Routes */}
+                    <Route
+                      path="/admin"
+                      element={
+                        <ProtectedRoute allowedRoles={['ADMIN', 'DISPATCHER']}>
+                          <MilestoneUnavailable title="Administration" />
+                        </ProtectedRoute>
+                      }
+                    />
 
-                {/* Fallback */}
-                <Route path="*" element={<Navigate to="/" replace />} />
-              </Routes>
-            </ApplicationLayout>
-          </NotificationCenterProvider>
-        </ToastProvider>
-      </AuthProvider>
-    </Router>
+                    {/* Fallback */}
+                    <Route path="*" element={<Navigate to="/" replace />} />
+                  </Routes>
+                </ApplicationLayout>
+              </NotificationCenterProvider>
+            </ToastProvider>
+          </ErrorProvider>
+        </AuthProvider>
+      </Router>
+    </ErrorBoundary>
   );
 };
 

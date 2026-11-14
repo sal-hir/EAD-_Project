@@ -22,7 +22,7 @@ public class SecurityConfig {
         return http.cors(c->{}).csrf(c->c.disable()).sessionManagement(s->s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .requestCache(c->c.disable()).formLogin(c->c.disable()).httpBasic(c->c.disable()).logout(c->c.disable())
             .addFilterBefore(new IdentityFilter(identities,mapper),UsernamePasswordAuthenticationFilter.class)
-            .authorizeHttpRequests(a->a.requestMatchers("/actuator/health","/actuator/health/**").permitAll().requestMatchers("/api/v1/merchants/admin/**").hasRole("ADMIN").anyRequest().authenticated())
+            .authorizeHttpRequests(a->a.requestMatchers("/api/v1/info","/actuator/health","/actuator/health/**").permitAll().requestMatchers("/api/v1/merchants/admin/**").hasRole("ADMIN").anyRequest().authenticated())
             .exceptionHandling(e->e.authenticationEntryPoint((req,res,ex)->ApiErrors.write(mapper,res,401,"Authentication required")).accessDeniedHandler((req,res,ex)->ApiErrors.write(mapper,res,403,"Access denied"))).build();
     }
 }
