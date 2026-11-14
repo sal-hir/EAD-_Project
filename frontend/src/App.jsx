@@ -18,6 +18,7 @@ import { ForgotPassword, ResetPassword } from './pages/PasswordRecovery';
 import { MerchantApply, MerchantStatus, MerchantDashboard } from './pages/MerchantOnboarding';
 import { AdminMerchants } from './pages/AdminMerchants';
 import { MerchantCredentials, AdminMerchantCredentials } from './pages/MerchantCredentials';
+import { MerchantOAuthClients, AdminMerchantOAuthClients } from './pages/MerchantOAuthClients';
 import { PublicTracking } from './pages/PublicTracking';
 import { Pricing } from './pages/Pricing';
 import { Help } from './pages/Help';
@@ -72,6 +73,8 @@ export const App = () => {
                 <Route path="/admin/merchants" element={<ProtectedRoute allowedRoles={['ADMIN']}><AdminMerchants /></ProtectedRoute>} />
                 <Route path="/admin/merchants/:merchantId/credentials" element={<ProtectedRoute allowedRoles={['ADMIN']}><AdminMerchantCredentials /></ProtectedRoute>} />
                 <Route path="/merchant/credentials" element={<ProtectedRoute allowedRoles={['MERCHANT']}><MerchantCredentials /></ProtectedRoute>} />
+                <Route path="/merchant/oauth-clients" element={<ProtectedRoute allowedRoles={['MERCHANT']}><MerchantOAuthClients /></ProtectedRoute>} />
+                <Route path="/admin/merchants/:merchantId/oauth-clients" element={<ProtectedRoute allowedRoles={['ADMIN']}><AdminMerchantOAuthClients /></ProtectedRoute>} />
                 <Route path="/merchant/apply" element={<ProtectedRoute allowedRoles={['CUSTOMER','MERCHANT']}><MerchantApply /></ProtectedRoute>} />
                 <Route path="/merchant/application-status" element={<ProtectedRoute allowedRoles={['CUSTOMER','MERCHANT']}><MerchantStatus /></ProtectedRoute>} />
 

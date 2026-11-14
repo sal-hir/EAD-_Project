@@ -12,7 +12,10 @@ Approved merchants can now generate/revoke API keys at `/merchant/credentials`.
 ADMIN can inspect/revoke keys from the merchant review page. Full keys are shown
 only once; machine requests authenticate through `X-API-Key` on Merchant Service.
 See [API key endpoints, security and Member 5 integration](docs/merchant-api-keys.md).
-OAuth client credentials and actual Merchant Orders integration remain pending.
+OAuth client credentials are also available at `/merchant/oauth-clients`: create,
+rotate/revoke clients and request short-lived, scoped machine tokens from Merchant
+Service. See [OAuth flow and Members 1/5 contract](docs/merchant-oauth.md).
+Actual Merchant Orders integration remains pending.
 
 ## Run with Docker Compose (recommended)
 

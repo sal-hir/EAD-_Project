@@ -1,7 +1,7 @@
 # Merchant API keys — Member 4 / Member 5 integration contract
 
-This implements API-key authentication. OAuth 2.0 client credentials and the
-Merchant Orders implementation are separate phases. Member 5 must integrate and
+This implements API-key authentication. [OAuth 2.0 client credentials](merchant-oauth.md)
+are implemented as a separate authentication flow. Member 5 must integrate and
 verify this contract in their Orders service before claiming end-to-end order
 submission support.
 

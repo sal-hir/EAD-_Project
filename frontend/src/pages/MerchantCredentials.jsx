@@ -49,6 +49,7 @@ function CredentialsPanel({ merchantId }) {
     <PageHeader title={admin ? 'Merchant API key administration' : 'API credentials'}
       description={admin ? 'Inspect credential metadata and revoke access for this business.' : 'Manage keys for your business integrations. Up to five keys can be active.'} />
     <Link className="text-blue-700" to={admin ? '/admin/merchants' : '/merchant'}>{admin ? 'Back to merchant applications' : 'Back to merchant dashboard'}</Link>
+    <Link className="block text-blue-700" to={admin ? `/admin/merchants/${merchantId}/oauth-clients` : '/merchant/oauth-clients'}>Manage OAuth clients</Link>
     {error && <ErrorState message={error} onRetry={!result ? () => setAttempt(n => n + 1) : undefined} />}
     {notice && <Toast message={notice} onDismiss={() => setNotice('')} />}
     {loading ? <LoadingSkeleton label="Loading API credentials..." /> : result && <>

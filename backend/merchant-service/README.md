@@ -64,7 +64,8 @@ editing and resubmission without creating privileged accounts in Neon.
 
 API key management is now implemented. See [the API key contract](../../docs/merchant-api-keys.md)
 for generation, one-time display, validation, revocation and Member 5 integration.
-OAuth client credentials remain a later phase.
+OAuth client credentials are implemented separately from browser JWTs and API keys.
+See [OAuth client management and integration](../../docs/merchant-oauth.md).
 
 ## Verification on 2026-11-14
 

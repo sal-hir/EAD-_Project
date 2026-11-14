@@ -45,3 +45,5 @@ app:
   auth-url: ${AUTH_SERVICE_URL:http://localhost:4000}
   auth-allow-docker-http: ${AUTH_ALLOW_DOCKER_HTTP:false}
   service-token: ${MERCHANT_SERVICE_TOKEN:}
+  oauth:
+    token-ttl-seconds: ${MERCHANT_OAUTH_TOKEN_TTL_SECONDS:900}

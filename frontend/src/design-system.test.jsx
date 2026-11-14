@@ -18,6 +18,7 @@ describe('shared design foundation', () => {
     expect(screen.getByRole('main').textContent).toContain('Portal content');
     expect(screen.queryAllByRole('link', { name: 'User accounts' }).length).toBe(current === 'ADMIN' ? 1 : 0);
     expect(screen.queryAllByRole('link', { name: 'API credentials', exact: true }).length).toBe(current === 'MERCHANT' ? 1 : 0);
+    expect(screen.queryAllByRole('link', { name: 'OAuth clients', exact: true }).length).toBe(current === 'MERCHANT' ? 1 : 0);
   });
   it('does not invent navigation for an unknown role', () => { expect(navigationFor('UNKNOWN')).toEqual([]); });
   it('opens the drawer, traps keyboard focus and restores focus when closed', () => {
