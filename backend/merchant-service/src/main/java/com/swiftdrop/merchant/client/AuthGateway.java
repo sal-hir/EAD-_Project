@@ -7,6 +7,7 @@ import java.net.http.HttpClient;
 import java.time.Duration;
 import java.util.*;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.client.JdkClientHttpRequestFactory;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.*;
@@ -14,9 +15,14 @@ import org.springframework.web.client.*;
 @Component
 public class AuthGateway implements IdentityGateway {
     private final RestClient client;private final String key;
-    public AuthGateway(@Value("${app.auth-url}") String url,@Value("${app.service-token:}") String key){
+    public AuthGateway(String url,String key){this(url,key,false);}
+    @Autowired
+    public AuthGateway(@Value("${app.auth-url}") String url,@Value("${app.service-token:}") String key,
+            @Value("${app.auth-allow-docker-http:false}") boolean allowDockerHttp){
         URI uri=URI.create(url);
-        if(!"https".equals(uri.getScheme())&&!("http".equals(uri.getScheme())&&Set.of("localhost","127.0.0.1","[::1]").contains(uri.getHost())))
+        boolean localHost=uri.getHost()!=null&&Set.of("localhost","127.0.0.1","[::1]").contains(uri.getHost());
+        boolean dockerHost=allowDockerHttp&&"auth-service".equals(uri.getHost());
+        if(!"https".equals(uri.getScheme())&&!("http".equals(uri.getScheme())&&(localHost||dockerHost)))
             throw new IllegalArgumentException("Auth Service communication requires HTTPS outside localhost");
         var factory=new JdkClientHttpRequestFactory(HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(3)).followRedirects(HttpClient.Redirect.NEVER).build());
         factory.setReadTimeout(Duration.ofSeconds(8));client=RestClient.builder().baseUrl(url).requestFactory(factory).build();this.key=key;

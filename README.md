@@ -21,6 +21,11 @@ docker compose up --build
 ```
 
 Open http://localhost:3000. The API listens at http://localhost:4000.
+Merchant Service is included in Compose at http://localhost:4001. Set a separate
+random `MERCHANT_SERVICE_TOKEN` of at least 32 characters in `.env`; Compose passes
+it to both services for approval role synchronization. Merchant database settings
+default to Auth's connection while using the separate `merchant` schema. See
+[Merchant Docker setup and acceptance checks](backend/merchant-service/README.md).
 Register a customer account; no demo accounts or default passwords are seeded.
 Check health at http://localhost:4000/actuator/health/readiness.
 Compose connects to Neon without starting a local PostgreSQL container. Auth owns

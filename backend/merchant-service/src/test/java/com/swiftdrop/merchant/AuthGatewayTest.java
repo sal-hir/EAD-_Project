@@ -39,4 +39,10 @@ class AuthGatewayTest {
         assertThatThrownBy(()->new AuthGateway("http://auth.example.com",key)).isInstanceOf(IllegalArgumentException.class);
         assertThatThrownBy(()->new AuthGateway(base,"").grantMerchant("opaque-verified-by-auth",UUID.randomUUID(),id)).isInstanceOf(ApiFailure.class);
     }
+    @Test void dockerHttpRequiresExplicitOptInAndExactServiceHostname(){
+        assertThatThrownBy(()->new AuthGateway("http://auth-service:4000",key)).isInstanceOf(IllegalArgumentException.class);
+        assertThatCode(()->new AuthGateway("http://auth-service:4000",key,true)).doesNotThrowAnyException();
+        assertThatThrownBy(()->new AuthGateway("http://auth.example.com",key,true)).isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(()->new AuthGateway("http://auth-service.attacker.example",key,true)).isInstanceOf(IllegalArgumentException.class);
+    }
 }
